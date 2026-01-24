@@ -85,3 +85,32 @@ Log of architectural decisions and their rationale.
 - Industry standard for distributable packages
 - Clear separation of source and tests
 - Better compatibility with packaging tools
+
+## ADR-007: Database - SQLite with SQLAlchemy
+
+**Status:** Accepted
+
+**Context:** Need persistent storage for news sources and scraped articles.
+
+**Decision:** Use SQLite with SQLAlchemy 2.0 ORM.
+
+**Rationale:**
+- SQLite: Zero configuration, file-based, built into Python
+- SQLAlchemy 2.0: Native type hints with `Mapped` and `mapped_column()`
+- No external database server required
+- Easy to backup (single file)
+- Sufficient for CLI application workload
+
+## ADR-008: Migrations - Alembic
+
+**Status:** Accepted
+
+**Context:** Need schema versioning and migration management.
+
+**Decision:** Use Alembic for database migrations.
+
+**Rationale:**
+- Official SQLAlchemy migration tool
+- Autogenerate support detects model changes
+- Supports upgrade and downgrade paths
+- Industry standard for SQLAlchemy projects

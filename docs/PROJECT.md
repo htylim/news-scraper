@@ -12,6 +12,8 @@ CLI application for scraping news articles from URLs.
 - [Coding Guidelines](./coding-guidelines.md)
 - [Testing Guidelines](./testing-guidelines.md)
 - [Documentation Guidelines](./documentation-guidelines.md)
+- [Database](./database.md)
+- [Models Guidelines](./models-guidelines.md)
 - [Learnings](./learnings.md)
 
 ## Current State

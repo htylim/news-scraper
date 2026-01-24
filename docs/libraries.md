@@ -7,6 +7,8 @@ Dependencies and tools used in this project.
 - **typer** - CLI framework
 - **rich** - Terminal output formatting
 - **structlog** - Structured logging
+- **sqlalchemy** - ORM with native type hints (2.0+)
+- **alembic** - Database migrations
 
 ## Development
 
