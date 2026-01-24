@@ -1,6 +1,8 @@
-# Learnings and Notes
+# Learnings
 
-This document captures notes, learnings, and insights gathered during development.
+Notes, learnings, and insights gathered during development
+
+**ALWAYS update this document with discovered patterns for future iterations.** 
 
 ## Phase 1: Basic CLI Foundation
 

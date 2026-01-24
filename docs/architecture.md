@@ -1,5 +1,7 @@
 # Architecture Decision Records
 
+Log of architectural decisions and their rationale.
+
 ## ADR-001: CLI Framework - Typer
 
 **Status:** Accepted
