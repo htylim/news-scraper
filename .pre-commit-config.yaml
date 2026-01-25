@@ -16,5 +16,6 @@ repos:
           - structlog
           - sqlalchemy>=2.0.46
           - alembic>=1.18.1
+          - playwright>=1.57.0
           - pytest
         args: [--strict]

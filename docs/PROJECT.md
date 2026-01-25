@@ -19,7 +19,10 @@ CLI application for scraping news articles from URLs.
 
 ## Current State
 
-Basic CLI scaffold with Typer. No scraping logic yet.
+Basic CLI scaffold with Typer. Scraping infrastructure implemented:
+
+- **Browser automation** (`browser.py`): Headless Chrome via Playwright with custom User-Agent, renders JavaScript-heavy pages
+- **Scraping logic** (`scraper.py`): Fetches source URLs using the browser module, outputs rendered HTML
 
 ## Entry Point
 

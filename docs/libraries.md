@@ -9,6 +9,7 @@ Dependencies and tools used in this project.
 - **structlog** - Structured logging
 - **sqlalchemy** - ORM with native type hints (2.0+)
 - **alembic** - Database migrations
+- **playwright** - Headless browser automation for JS-rendered pages
 
 ## Development
 

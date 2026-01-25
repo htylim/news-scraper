@@ -1,6 +1,7 @@
 """Tests for the CLI module."""
 
 from collections.abc import Generator
+from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy import create_engine
@@ -11,6 +12,7 @@ from news_scraper import __version__
 from news_scraper.cli import app
 from news_scraper.db.base import Base
 from news_scraper.db.models import Source
+from news_scraper.scraper import ScraperError
 
 runner = CliRunner()
 
@@ -31,6 +33,15 @@ def cli_db_session(monkeypatch: pytest.MonkeyPatch) -> Generator[Session, None, 
         yield session
 
     monkeypatch.setattr("news_scraper.cli.get_session", mock_get_session)
+
+    # Mock scrape to avoid actual browser calls
+    mock_scrape = MagicMock()
+
+    def print_scraping(source: Source) -> None:
+        print(f"Scraping {source.name}")
+
+    mock_scrape.side_effect = print_scraping
+    monkeypatch.setattr("news_scraper.cli.scrape", mock_scrape)
 
     try:
         yield session
@@ -172,6 +183,27 @@ class TestCliScrape:
         """Test error when source name is empty."""
         result = runner.invoke(app, ["-s", ""])
         assert result.exit_code == 1
+
+    def test_scraper_error_handling(
+        self, cli_db_session: Session, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that ScraperError is caught and displays appropriate message."""
+        source = Source(name="failsource", url="https://fail.com")
+        cli_db_session.add(source)
+        cli_db_session.commit()
+
+        # Override the scrape mock to raise ScraperError
+        mock_scrape = MagicMock(
+            side_effect=ScraperError(
+                message="Connection timed out", source_name="failsource"
+            )
+        )
+        monkeypatch.setattr("news_scraper.cli.scrape", mock_scrape)
+
+        result = runner.invoke(app, ["-s", "failsource"])
+        assert result.exit_code == 1
+        assert "Failed to scrape failsource" in result.stdout
+        assert "Connection timed out" in result.stdout
 
 
 class TestCliVersion:

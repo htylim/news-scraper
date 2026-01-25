@@ -19,3 +19,8 @@ Notes, learnings, and insights gathered during development
 - For CLI tests that patch `get_session`, ensure fixture is used even if test doesn't directly call DB
 - Return `Any` type for structlog's `get_logger()` to satisfy mypy strict mode
 - `__main__.py` should call `app()` not `main()` when using Typer callbacks
+- Playwright `networkidle` can hang on sites with long-lived requests; prefer `domcontentloaded` and a best-effort `networkidle` wait
+
+## Phase 3: Scraping Verification
+
+- Use the browser agent (MCP cursor-ide-browser) to manually verify scraping results by navigating to the target URL and comparing visible content with scraper output

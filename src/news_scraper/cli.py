@@ -10,7 +10,7 @@ from news_scraper import __version__
 from news_scraper.db import get_session
 from news_scraper.db.models import Source
 from news_scraper.logging import configure_logging, get_logger
-from news_scraper.scraper import scrape
+from news_scraper.scraper import ScraperError, scrape
 from news_scraper.validation import ValidationError, validate_slug
 
 console = Console()
@@ -92,7 +92,13 @@ def main(
             raise typer.Exit(code=1)
 
         log.info("Scraping source", source=normalized_name)
-        scrape(source)
+        try:
+            scrape(source)
+        except ScraperError as e:
+            console.print(
+                f"[red]Error:[/red] Failed to scrape {e.source_name}: {e.message}"
+            )
+            raise typer.Exit(code=1) from None
 
 
 if __name__ == "__main__":
