@@ -10,6 +10,8 @@ Dependencies and tools used in this project.
 - **sqlalchemy** - ORM with native type hints (2.0+)
 - **alembic** - Database migrations
 - **playwright** - Headless browser automation for JS-rendered pages
+- **beautifulsoup4** - HTML parsing library
+- **lxml** - Fast HTML/XML parser (backend for BeautifulSoup)
 
 ## Development
 

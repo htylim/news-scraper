@@ -12,6 +12,10 @@ news-scraper/
 │   ├── logging.py        # Structlog configuration
 │   ├── scraper.py        # Scraper module
 │   ├── validation.py     # Input validation utilities
+│   ├── parsers/          # Site-specific HTML parsers
+│   │   ├── __init__.py   # Parser registry
+│   │   ├── base.py       # Parser protocol + Article model
+│   │   └── infobae.py    # Infobae parser implementation
 │   └── db/               # Database module
 │       ├── __init__.py   # Module exports
 │       ├── base.py       # DeclarativeBase + mixins

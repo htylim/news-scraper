@@ -24,3 +24,14 @@ Notes, learnings, and insights gathered during development
 ## Phase 3: Scraping Verification
 
 - Use the browser agent (MCP cursor-ide-browser) to manually verify scraping results by navigating to the target URL and comparing visible content with scraper output
+
+## Phase 4: HTML Parsing (S005)
+
+- BeautifulSoup's `find(class_="foo")` performs partial CSS class matching - finds elements where "foo" is one of multiple classes
+- Add type annotations for BeautifulSoup `get_text()` return values to satisfy mypy strict mode (e.g., `text: str = element.get_text(strip=True)`)
+- Add mypy overrides for `bs4.*` and `lxml.*` modules (no stubs available)
+- Use frozen dataclasses for immutable data transfer objects (Article) - provides hashability for deduplication
+- Strategy pattern with Protocol enables adding new parsers without modifying existing code
+- Use parser registry with instances (not classes) to avoid `type[Protocol]` typing issues
+- Deduplicate articles by URL using a set for O(1) lookup
+- Combine nested `with` statements using parenthesized context managers (ruff SIM117)
