@@ -10,3 +10,5 @@ Rules for AI agents working on this project.
 4. **Run pre-commit** - `uv run pre-commit run --all-files` before completing work
 5. **Update documentation** - Keep docs in sync with code changes
 6. **Update docs/learnings.md** - With discovered patterns for future iterations
+7. **Code in `docs/specs/*` files are for reference/example** -  do not use it blindly.
+8. **`docs/specs/*` files may be ambiguous or incomplete** - Always ask clarifying questions.

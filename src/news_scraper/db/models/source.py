@@ -1,9 +1,10 @@
 """Source model for news sources."""
 
 from sqlalchemy import Boolean, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from news_scraper.db.base import Base, TimestampMixin
+from news_scraper.validation import ValidationError, validate_slug
 
 
 class Source(TimestampMixin, Base):
@@ -18,6 +19,25 @@ class Source(TimestampMixin, Base):
     is_enabled: Mapped[bool] = mapped_column(
         Boolean, default=True, server_default="1", nullable=False
     )
+
+    @validates("name")
+    def validate_name(self, _key: str, value: str) -> str:
+        """Validate and normalize name as a slug.
+
+        Args:
+            _key: The attribute name (always "name").
+            value: The value being set.
+
+        Returns:
+            The normalized lowercase slug.
+
+        Raises:
+            ValueError: If the name is not a valid slug.
+        """
+        try:
+            return validate_slug(value, field_name="name")
+        except ValidationError as e:
+            raise ValueError(str(e)) from e
 
     def __repr__(self) -> str:
         return f"<Source(id={self.id}, name={self.name!r})>"

@@ -9,6 +9,9 @@ news-scraper/
 │   ├── __main__.py       # python -m support
 │   ├── cli.py            # CLI entry point
 │   ├── config.py         # Central configuration
+│   ├── logging.py        # Structlog configuration
+│   ├── scraper.py        # Scraper module
+│   ├── validation.py     # Input validation utilities
 │   └── db/               # Database module
 │       ├── __init__.py   # Module exports
 │       ├── base.py       # DeclarativeBase + mixins

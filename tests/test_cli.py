@@ -1,82 +1,176 @@
 """Tests for the CLI module."""
 
+from collections.abc import Generator
+
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 from typer.testing import CliRunner
 
 from news_scraper import __version__
-from news_scraper.cli import app, validate_url
+from news_scraper.cli import app
+from news_scraper.db.base import Base
+from news_scraper.db.models import Source
 
 runner = CliRunner()
 
 
-class TestValidateUrl:
-    """Tests for URL validation."""
+@pytest.fixture
+def cli_db_session(monkeypatch: pytest.MonkeyPatch) -> Generator[Session, None, None]:
+    """In-memory database session that patches get_session for CLI tests."""
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    TestSession = sessionmaker(bind=engine)
+    session = TestSession()
 
-    def test_valid_http_url(self) -> None:
-        """Test that valid HTTP URLs pass validation."""
-        assert validate_url("http://example.com")
-        assert validate_url("http://example.com/path")
-        assert validate_url("http://example.com/path?query=1")
+    # Patch get_session to use test session
+    from contextlib import contextmanager
 
-    def test_valid_https_url(self) -> None:
-        """Test that valid HTTPS URLs pass validation."""
-        assert validate_url("https://example.com")
-        assert validate_url("https://www.example.com")
-        assert validate_url("https://example.com/path/to/resource")
+    @contextmanager
+    def mock_get_session() -> Generator[Session, None, None]:
+        yield session
 
-    def test_valid_url_with_port(self) -> None:
-        """Test that URLs with ports pass validation."""
-        assert validate_url("http://localhost:8080")
-        assert validate_url("https://example.com:443/path")
+    monkeypatch.setattr("news_scraper.cli.get_session", mock_get_session)
 
-    def test_valid_ip_url(self) -> None:
-        """Test that URLs with IP addresses pass validation."""
-        assert validate_url("http://192.168.1.1")
-        assert validate_url("http://192.168.1.1:8080/api")
-
-    def test_invalid_url_no_scheme(self) -> None:
-        """Test that URLs without scheme fail validation."""
-        assert not validate_url("example.com")
-        assert not validate_url("www.example.com")
-
-    def test_invalid_url_wrong_scheme(self) -> None:
-        """Test that URLs with wrong scheme fail validation."""
-        assert not validate_url("ftp://example.com")
-        assert not validate_url("file:///path/to/file")
-
-    def test_invalid_url_empty(self) -> None:
-        """Test that empty strings fail validation."""
-        assert not validate_url("")
-
-    def test_invalid_url_random_string(self) -> None:
-        """Test that random strings fail validation."""
-        assert not validate_url("not a url")
-        assert not validate_url("http://")
+    try:
+        yield session
+    finally:
+        session.close()
+        Base.metadata.drop_all(engine)
 
 
 class TestCliScrape:
     """Tests for the scrape command."""
 
-    def test_valid_url_prints_url(self) -> None:
-        """Test that a valid URL is printed to stdout."""
-        result = runner.invoke(app, ["https://example.com"])
-        assert result.exit_code == 0
-        assert "https://example.com" in result.stdout
+    def test_scrape_existing_source(self, cli_db_session: Session) -> None:
+        """Test scraping an existing source prints message."""
+        source = Source(name="infobae", url="https://infobae.com")
+        cli_db_session.add(source)
+        cli_db_session.commit()
 
-    def test_valid_url_with_verbose(self) -> None:
-        """Test that verbose flag works with valid URL."""
-        result = runner.invoke(app, ["--verbose", "https://example.com"])
+        result = runner.invoke(app, ["-s", "infobae"])
         assert result.exit_code == 0
-        assert "https://example.com" in result.stdout
+        assert "Scraping infobae" in result.stdout
 
-    def test_invalid_url_returns_error(self) -> None:
-        """Test that invalid URL returns error exit code."""
-        result = runner.invoke(app, ["not-a-valid-url"])
+    def test_scrape_correct_source_among_multiple(
+        self, cli_db_session: Session
+    ) -> None:
+        """Test that correct source is selected when multiple exist."""
+        # Add multiple sources
+        sources = [
+            Source(name="infobae", url="https://infobae.com"),
+            Source(name="clarin", url="https://clarin.com"),
+            Source(name="lanacion", url="https://lanacion.com.ar"),
+        ]
+        for s in sources:
+            cli_db_session.add(s)
+        cli_db_session.commit()
+
+        # Request specific source
+        result = runner.invoke(app, ["-s", "clarin"])
+        assert result.exit_code == 0
+        assert "Scraping clarin" in result.stdout
+        # Ensure other sources are NOT in output
+        assert "infobae" not in result.stdout
+        assert "lanacion" not in result.stdout
+
+    def test_scrape_case_insensitive_lookup(self, cli_db_session: Session) -> None:
+        """Test source lookup is case-insensitive."""
+        source = Source(name="infobae", url="https://infobae.com")
+        cli_db_session.add(source)
+        cli_db_session.commit()
+
+        # Uppercase input should find lowercase source
+        result = runner.invoke(app, ["-s", "INFOBAE"])
+        assert result.exit_code == 0
+        assert "Scraping infobae" in result.stdout
+
+    def test_scrape_mixed_case_lookup(self, cli_db_session: Session) -> None:
+        """Test mixed case input is normalized."""
+        source = Source(name="lanacion", url="https://lanacion.com.ar")
+        cli_db_session.add(source)
+        cli_db_session.commit()
+
+        result = runner.invoke(app, ["-s", "LaNacion"])
+        assert result.exit_code == 0
+        assert "Scraping lanacion" in result.stdout
+
+    def test_scrape_with_long_option(self, cli_db_session: Session) -> None:
+        """Test --source long option works."""
+        source = Source(name="testsource", url="https://test.com")
+        cli_db_session.add(source)
+        cli_db_session.commit()
+
+        result = runner.invoke(app, ["--source", "testsource"])
+        assert result.exit_code == 0
+        assert "Scraping testsource" in result.stdout
+
+    def test_scrape_with_verbose(self, cli_db_session: Session) -> None:
+        """Test verbose flag works with source."""
+        source = Source(name="verbosesrc", url="https://verbose.com")
+        cli_db_session.add(source)
+        cli_db_session.commit()
+
+        result = runner.invoke(app, ["-s", "verbosesrc", "-v"])
+        assert result.exit_code == 0
+        assert "Scraping verbosesrc" in result.stdout
+
+    def test_source_not_found(self, cli_db_session: Session) -> None:
+        """Test error when source doesn't exist."""
+        _ = cli_db_session  # Ensure fixture is active for get_session patch
+        result = runner.invoke(app, ["-s", "nonexistent"])
         assert result.exit_code == 1
-        assert "Invalid URL" in result.stdout or "Error" in result.stdout
+        assert "Source not found" in result.stdout
+        assert "nonexistent" in result.stdout
 
-    def test_invalid_url_no_scheme(self) -> None:
-        """Test that URL without scheme returns error."""
-        result = runner.invoke(app, ["example.com"])
+    def test_source_not_found_among_multiple(self, cli_db_session: Session) -> None:
+        """Test source not found when other sources exist."""
+        sources = [
+            Source(name="infobae", url="https://infobae.com"),
+            Source(name="clarin", url="https://clarin.com"),
+        ]
+        for s in sources:
+            cli_db_session.add(s)
+        cli_db_session.commit()
+
+        result = runner.invoke(app, ["-s", "nonexistent"])
+        assert result.exit_code == 1
+        assert "Source not found" in result.stdout
+
+    def test_source_disabled(self, cli_db_session: Session) -> None:
+        """Test error when source is disabled."""
+        source = Source(name="disabled", url="https://disabled.com", is_enabled=False)
+        cli_db_session.add(source)
+        cli_db_session.commit()
+
+        result = runner.invoke(app, ["-s", "disabled"])
+        assert result.exit_code == 1
+        assert "Source is disabled" in result.stdout
+
+    def test_missing_source_option(self) -> None:
+        """Test error when -s option is missing."""
+        result = runner.invoke(app, [])
+        assert result.exit_code != 0
+        # Check for our custom error message or Typer's default
+        assert "Missing" in result.stdout or "--source" in result.stdout
+
+    def test_invalid_source_name_with_spaces(self) -> None:
+        """Test error when source name contains spaces."""
+        result = runner.invoke(app, ["-s", "invalid source"])
+        assert result.exit_code == 1
+        assert (
+            "must contain only" in result.stdout.lower()
+            or "invalid" in result.stdout.lower()
+        )
+
+    def test_invalid_source_name_with_special_chars(self) -> None:
+        """Test error when source name contains invalid characters."""
+        result = runner.invoke(app, ["-s", "source@name!"])
+        assert result.exit_code == 1
+
+    def test_invalid_source_name_empty(self) -> None:
+        """Test error when source name is empty."""
+        result = runner.invoke(app, ["-s", ""])
         assert result.exit_code == 1
 
 
@@ -89,9 +183,9 @@ class TestCliVersion:
         assert result.exit_code == 0
         assert __version__ in result.stdout
 
-    def test_version_with_url(self) -> None:
-        """Test that --version takes precedence over URL argument."""
-        result = runner.invoke(app, ["--version", "https://example.com"])
+    def test_version_short_flag(self) -> None:
+        """Test that version takes precedence."""
+        result = runner.invoke(app, ["--version", "-s", "any"])
         assert result.exit_code == 0
         assert __version__ in result.stdout
 
@@ -103,7 +197,8 @@ class TestCliHelp:
         """Test that --help flag shows help."""
         result = runner.invoke(app, ["--help"])
         assert result.exit_code == 0
-        assert "URL to scrape" in result.stdout
+        assert "--source" in result.stdout
+        assert "-s" in result.stdout
 
     def test_help_shows_options(self) -> None:
         """Test that help shows all options."""

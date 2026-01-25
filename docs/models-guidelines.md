@@ -45,6 +45,8 @@ with get_session() as session:
     session.commit()
 ```
 
+For query patterns, see [Queries](./queries.md).
+
 ## Example
 
 ```python
