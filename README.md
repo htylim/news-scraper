@@ -21,7 +21,7 @@ uv venv
 source .venv/bin/activate  # or `.venv\Scripts\activate` on Windows
 uv pip install .
 
-# Install Playwright browsers
+# Install Playwright browsers (skip if Chrome is already installed on your system)
 uv run playwright install chromium
 ```
 
@@ -32,7 +32,7 @@ python -m venv .venv
 source .venv/bin/activate
 pip install .
 
-# Install Playwright browsers
+# Install Playwright browsers (skip if Chrome is already installed on your system)
 playwright install chromium
 ```
 
@@ -88,7 +88,7 @@ source .venv/bin/activate
 # Install with dev dependencies
 uv pip install -e ".[dev]"
 
-# Install Playwright browsers
+# Install Playwright browsers (skip if Chrome is already installed on your system)
 uv run playwright install chromium
 
 # Install pre-commit hooks
