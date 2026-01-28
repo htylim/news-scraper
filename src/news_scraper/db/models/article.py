@@ -49,6 +49,8 @@ class Article(TimestampMixin, Base):
         Index("ix_articles_url", "url"),
         Index("ix_articles_source_id", "source_id"),
         Index("ix_articles_last_seen_at", "last_seen_at"),
+        Index("ix_articles_created_at", "created_at"),
+        Index("ix_articles_updated_at", "updated_at"),
     )
 
     def __repr__(self) -> str:

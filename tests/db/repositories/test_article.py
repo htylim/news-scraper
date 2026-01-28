@@ -253,12 +253,14 @@ class TestArticleRepositoryBulkUpsert:
     def test_bulk_upsert_dedupes_within_batch(
         self, db_session: Session, repo: ArticleRepository, source: Source
     ) -> None:
-        """bulk_upsert_from_parsed keeps first occurrence when batch has duplicate URLs."""
+        """bulk_upsert keeps first occurrence when batch has duplicate URLs."""
         parsed = [
             ParsedArticle(
                 headline="First Occurrence", url="https://bulk.com/dupe", position=1
             ),
-            ParsedArticle(headline="New Article", url="https://bulk.com/new", position=2),
+            ParsedArticle(
+                headline="New Article", url="https://bulk.com/new", position=2
+            ),
             ParsedArticle(
                 headline="Second Occurrence", url="https://bulk.com/dupe", position=3
             ),
@@ -281,7 +283,10 @@ class TestArticleRepositoryBulkUpsert:
         assert article.position == 1
 
     def test_bulk_upsert_empty_list(
-        self, db_session: Session, repo: ArticleRepository, source: Source
+        self,
+        db_session: Session,  # noqa: ARG002
+        repo: ArticleRepository,
+        source: Source,
     ) -> None:
         """bulk_upsert_from_parsed handles empty list."""
         created, updated, skipped = repo.bulk_upsert_from_parsed([], source)

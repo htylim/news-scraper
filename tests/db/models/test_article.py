@@ -78,9 +78,7 @@ class TestArticleModel:
         assert article.updated_at is not None
         assert article.last_seen_at is not None
 
-    def test_url_unique_constraint(
-        self, db_session: Session, source: Source
-    ) -> None:
+    def test_url_unique_constraint(self, db_session: Session, source: Source) -> None:
         """Duplicate URLs are rejected."""
         article1 = Article(
             headline="First",
@@ -101,9 +99,7 @@ class TestArticleModel:
         with pytest.raises(IntegrityError):
             db_session.commit()
 
-    def test_source_relationship(
-        self, db_session: Session, source: Source
-    ) -> None:
+    def test_source_relationship(self, db_session: Session, source: Source) -> None:
         """Article has relationship to source."""
         article = Article(
             headline="Relationship Test",
