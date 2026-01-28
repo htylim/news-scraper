@@ -1,4 +1,4 @@
-"""Tests for database models."""
+"""Tests for Source model."""
 
 import pytest
 from sqlalchemy.exc import IntegrityError

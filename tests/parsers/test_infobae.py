@@ -45,6 +45,7 @@ class TestInfobaeParser:
         assert (
             result[0].url == "https://www.infobae.com/politica/2026/01/25/test-article/"
         )
+        assert result[0].position == 1
 
     def test_parse_multiple_story_cards(self, parser: InfobaeParser) -> None:
         """Test parsing HTML with multiple story cards."""
@@ -64,7 +65,9 @@ class TestInfobaeParser:
 
         assert len(result) == 2
         assert result[0].headline == "First Article"
+        assert result[0].position == 1
         assert result[1].headline == "Second Article"
+        assert result[1].position == 2
 
     def test_parse_story_card_with_deck(self, parser: InfobaeParser) -> None:
         """Test parsing story card with summary/deck."""
@@ -121,7 +124,7 @@ class TestInfobaeParser:
         assert result[0].image_url == "https://example.com/image.jpg"
 
     def test_parse_deduplicates_by_url(self, parser: InfobaeParser) -> None:
-        """Test that duplicate URLs are filtered out."""
+        """Test that duplicate URLs are filtered out, keeping first position."""
         html = """
         <html>
         <body>
@@ -141,9 +144,13 @@ class TestInfobaeParser:
 
         # Should only have 2 unique articles
         assert len(result) == 2
-        urls = [a.url for a in result]
-        assert "https://www.infobae.com/same-article/" in urls
-        assert "https://www.infobae.com/different-article/" in urls
+        # First article keeps position 1
+        assert result[0].url == "https://www.infobae.com/same-article/"
+        assert result[0].headline == "First Instance"
+        assert result[0].position == 1
+        # Different article gets position 2 (not 3)
+        assert result[1].url == "https://www.infobae.com/different-article/"
+        assert result[1].position == 2
 
     def test_parse_skips_card_without_headline(self, parser: InfobaeParser) -> None:
         """Test that cards without headlines are skipped."""

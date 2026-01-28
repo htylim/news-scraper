@@ -1,11 +1,22 @@
 """Parser for Infobae news site."""
 
+from typing import TypedDict
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup, Tag
 
 from news_scraper.logging import get_logger
-from news_scraper.parsers.base import Article
+from news_scraper.parsers.base import ParsedArticle
+
+
+class _ParsedData(TypedDict):
+    """Internal type for parsed article data before creating ParsedArticle."""
+
+    headline: str
+    url: str
+    summary: str | None
+    image_url: str | None
+
 
 # Base URL for resolving relative links
 BASE_URL = "https://www.infobae.com"
@@ -18,22 +29,25 @@ class InfobaeParser:
     by elements with class "story-card-ctn".
     """
 
-    def parse(self, html: str) -> list[Article]:
+    def parse(self, html: str) -> list[ParsedArticle]:
         """Parse Infobae HTML and extract articles.
 
-        Extracts ALL articles found on the page, deduplicates by URL,
-        and logs errors for individual articles that fail to parse.
+        Extracts ALL articles found on the page, deduplicates by URL
+        (keeping first occurrence), assigns positions, and logs errors
+        for individual articles that fail to parse.
 
         Args:
             html: Raw HTML content from Infobae's front page.
 
         Returns:
-            List of unique Article objects. Empty list if no articles found.
+            List of unique ParsedArticle objects with positions.
+            Empty list if no articles found.
         """
         log = get_logger()
         soup = BeautifulSoup(html, "lxml")
-        articles: list[Article] = []
+        articles: list[ParsedArticle] = []
         seen_urls: set[str] = set()
+        position = 0  # Will be incremented before use (1-based)
 
         # Find all story card containers
         article_elements = soup.find_all(class_="story-card-ctn")
@@ -43,10 +57,19 @@ class InfobaeParser:
                 continue
 
             try:
-                article = self._parse_article_element(element)
-                if article and article.url not in seen_urls:
-                    articles.append(article)
-                    seen_urls.add(article.url)
+                parsed = self._parse_article_element(element)
+                if parsed and parsed["url"] not in seen_urls:
+                    position += 1
+                    articles.append(
+                        ParsedArticle(
+                            headline=parsed["headline"],
+                            url=parsed["url"],
+                            position=position,
+                            summary=parsed.get("summary"),
+                            image_url=parsed.get("image_url"),
+                        )
+                    )
+                    seen_urls.add(parsed["url"])
             except Exception:
                 # Log error with stack trace and continue with next article
                 log.exception("Failed to parse article element")
@@ -54,14 +77,14 @@ class InfobaeParser:
 
         return articles
 
-    def _parse_article_element(self, element: Tag) -> Article | None:
+    def _parse_article_element(self, element: Tag) -> _ParsedData | None:
         """Extract article data from a story-card-ctn element.
 
         Args:
             element: BeautifulSoup Tag containing article data.
 
         Returns:
-            Article object if extraction successful, None otherwise.
+            Dict with article fields if extraction successful, None otherwise.
         """
         headline = self._extract_headline(element)
         url = self._extract_url(element)
@@ -73,12 +96,12 @@ class InfobaeParser:
         summary = self._extract_summary(element)
         image_url = self._extract_image_url(element)
 
-        return Article(
-            headline=headline,
-            url=url,
-            summary=summary,
-            image_url=image_url,
-        )
+        return {
+            "headline": headline,
+            "url": url,
+            "summary": summary,
+            "image_url": image_url,
+        }
 
     def _extract_headline(self, element: Tag) -> str | None:
         """Extract headline text from article element.

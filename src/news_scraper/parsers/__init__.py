@@ -1,9 +1,9 @@
 """Parsers module for extracting articles from news site HTML."""
 
-from news_scraper.parsers.base import Article, Parser
+from news_scraper.parsers.base import ParsedArticle, Parser
 from news_scraper.parsers.infobae import InfobaeParser
 
-__all__ = ["Article", "Parser", "get_parser", "ParserNotFoundError"]
+__all__ = ["ParsedArticle", "Parser", "get_parser", "ParserNotFoundError"]
 
 # Registry mapping source names to parser instances
 # Using instances avoids typing issues with type[Protocol]

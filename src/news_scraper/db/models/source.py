@@ -1,10 +1,15 @@
 """Source model for news sources."""
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Boolean, String
-from sqlalchemy.orm import Mapped, mapped_column, validates
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from news_scraper.db.base import Base, TimestampMixin
 from news_scraper.validation import ValidationError, validate_slug
+
+if TYPE_CHECKING:
+    from news_scraper.db.models.article import Article
 
 
 class Source(TimestampMixin, Base):
@@ -18,6 +23,11 @@ class Source(TimestampMixin, Base):
     logo_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     is_enabled: Mapped[bool] = mapped_column(
         Boolean, default=True, server_default="1", nullable=False
+    )
+
+    # Relationships
+    articles: Mapped[list["Article"]] = relationship(
+        back_populates="source", cascade="all, delete-orphan"
     )
 
     @validates("name")

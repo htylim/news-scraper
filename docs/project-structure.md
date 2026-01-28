@@ -14,15 +14,19 @@ news-scraper/
 │   ├── validation.py     # Input validation utilities
 │   ├── parsers/          # Site-specific HTML parsers
 │   │   ├── __init__.py   # Parser registry
-│   │   ├── base.py       # Parser protocol + Article model
+│   │   ├── base.py       # Parser protocol + ParsedArticle dataclass
 │   │   └── infobae.py    # Infobae parser implementation
 │   └── db/               # Database module
 │       ├── __init__.py   # Module exports
 │       ├── base.py       # DeclarativeBase + mixins
 │       ├── session.py    # Engine and session management
-│       └── models/       # ORM models
+│       ├── models/       # ORM models
+│       │   ├── __init__.py
+│       │   ├── source.py
+│       │   └── article.py
+│       └── repositories/ # Data access layer
 │           ├── __init__.py
-│           └── source.py
+│           └── article.py
 ├── alembic/              # Database migrations
 │   ├── env.py            # Migration environment
 │   ├── script.py.mako    # Migration template

@@ -1,12 +1,17 @@
 """Scraper module for news sources."""
 
+from dataclasses import dataclass
+from datetime import datetime
+
 from rich.console import Console
 from rich.markup import escape
 
 from news_scraper.browser import BrowserError, fetch_rendered_html
+from news_scraper.db import get_session
 from news_scraper.db.models import Source
+from news_scraper.db.repositories import ArticleRepository
 from news_scraper.logging import get_logger
-from news_scraper.parsers import Article, ParserNotFoundError, get_parser
+from news_scraper.parsers import ParsedArticle, ParserNotFoundError, get_parser
 
 # Display configuration
 SUMMARY_MAX_LENGTH = 200
@@ -29,17 +34,35 @@ class ScraperError(Exception):
         super().__init__(message)
 
 
-def scrape(source: Source) -> list[Article]:
-    """Scrape news from the given source.
+@dataclass
+class ScrapeResult:
+    """Result of a scrape operation.
+
+    Attributes:
+        articles: List of parsed articles.
+        created_count: Number of new articles created.
+        updated_count: Number of existing articles updated.
+        skipped_count: Number of articles skipped (cross-source duplicates).
+    """
+
+    articles: list[ParsedArticle]
+    created_count: int
+    updated_count: int
+    skipped_count: int
+
+
+def scrape(source: Source) -> ScrapeResult:
+    """Scrape news from the given source and persist to database.
 
     Fetches the source URL using a headless browser, parses the HTML
-    to extract articles, and returns the article data.
+    to extract articles, persists them to the database, and returns
+    the results.
 
     Args:
         source: The source to scrape.
 
     Returns:
-        List of Article objects extracted from the source.
+        ScrapeResult with parsed articles and persistence stats.
 
     Raises:
         ScraperError: If fetching or parsing the page fails.
@@ -64,10 +87,31 @@ def scrape(source: Source) -> list[Article]:
     articles = parser.parse(html)
     log.info("Articles parsed", count=len(articles))
 
-    return articles
+    # Persist to database
+    seen_at = datetime.now()
+    with get_session() as session:
+        repo = ArticleRepository(session)
+        created, updated, skipped = repo.bulk_upsert_from_parsed(
+            articles, source, seen_at
+        )
+        session.commit()
+
+    log.info(
+        "Articles persisted",
+        created=created,
+        updated=updated,
+        skipped=skipped,
+    )
+
+    return ScrapeResult(
+        articles=articles,
+        created_count=created,
+        updated_count=updated,
+        skipped_count=skipped,
+    )
 
 
-def format_article(article: Article, index: int) -> str:
+def format_article(article: ParsedArticle, index: int) -> str:
     """Format an article for console output.
 
     Args:
@@ -84,6 +128,7 @@ def format_article(article: Article, index: int) -> str:
     lines = [
         f"[{index}] {headline}",
         f"    URL: {url}",
+        f"    Position: {article.position}",
     ]
     if article.summary:
         # Truncate long summaries for display
@@ -97,18 +142,23 @@ def format_article(article: Article, index: int) -> str:
     return "\n".join(lines)
 
 
-def print_articles(articles: list[Article]) -> None:
-    """Print articles to console in a readable format.
+def print_scrape_result(result: ScrapeResult) -> None:
+    """Print scrape result to console in a readable format.
 
     Args:
-        articles: List of articles to print.
+        result: Scrape result to print.
     """
-    if not articles:
+    if not result.articles:
         console.print("No articles found.")
         return
 
-    console.print(f"\nFound {len(articles)} articles:\n")
+    console.print(f"\nFound {len(result.articles)} articles:\n")
+    console.print(f"  New: {result.created_count}")
+    console.print(f"  Updated: {result.updated_count}")
+    if result.skipped_count > 0:
+        console.print(f"  Skipped (cross-source duplicates): {result.skipped_count}")
+    console.print()
     console.print("=" * 80)
-    for i, article in enumerate(articles, 1):
+    for i, article in enumerate(result.articles, 1):
         console.print(format_article(article, i))
         console.print("-" * 80)

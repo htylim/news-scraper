@@ -12,7 +12,8 @@ from news_scraper import __version__
 from news_scraper.cli import app
 from news_scraper.db.base import Base
 from news_scraper.db.models import Source
-from news_scraper.scraper import ScraperError
+from news_scraper.parsers import ParsedArticle
+from news_scraper.scraper import ScraperError, ScrapeResult
 
 runner = CliRunner()
 
@@ -35,13 +36,22 @@ def cli_db_session(monkeypatch: pytest.MonkeyPatch) -> Generator[Session, None, 
     monkeypatch.setattr("news_scraper.cli.get_session", mock_get_session)
 
     # Mock scrape to avoid actual browser calls
-    mock_scrape = MagicMock()
-
-    def print_scraping(source: Source) -> None:
+    def mock_scrape_fn(source: Source) -> ScrapeResult:
         print(f"Scraping {source.name}")
+        return ScrapeResult(
+            articles=[
+                ParsedArticle(
+                    headline="Test Article",
+                    url=f"https://{source.name}.com/article",
+                    position=1,
+                )
+            ],
+            created_count=1,
+            updated_count=0,
+            skipped_count=0,
+        )
 
-    mock_scrape.side_effect = print_scraping
-    monkeypatch.setattr("news_scraper.cli.scrape", mock_scrape)
+    monkeypatch.setattr("news_scraper.cli.scrape", mock_scrape_fn)
 
     try:
         yield session
