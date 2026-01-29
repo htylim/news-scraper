@@ -10,6 +10,7 @@
 
 **Always update documents as project evolves**
 
+- [Specs Writing Instructions](./docs/specs.md)
 - [Project Structure](./docs/project-structure.md)
 - [Libraries](./docs/libraries.md)
 - [Architecture Decisions](./docs/architecture.md)
