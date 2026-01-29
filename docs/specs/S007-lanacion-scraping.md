@@ -16,11 +16,17 @@ The command will:
 3. Persist articles to database with deduplication
 4. Print summary of new/updated articles to console
 
+## Non-Goals
+
+- No additional CLI argument validation beyond existing source lookup behavior
+- No filtering of sponsored/advertorial cards yet
+- No headline normalization/cleanup (keep raw text)
+
 ## Architecture
 
 ### Parser Strategy
 
-Following the existing pattern (Infobae), create a site-specific parser that implements the `Parser` protocol.
+Following the existing pattern (Infobae), create a site-specific parser that implements the `Parser` protocol (explicit subclass or structural typing).
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌──────────────────┐
@@ -47,6 +53,7 @@ Based on browser inspection of https://www.lanacion.com.ar/:
 - Inside article: `<a class="ln-link">` with `href` attribute
 - URLs are relative (e.g., `/politica/el-conflicto-mundial-...`)
 - Base URL: `https://www.lanacion.com.ar`
+- Normalize URLs by stripping fragments and tracking params (e.g., `utm_*`)
 
 **Headline:**
 - Featured articles use `<h1>` tag
@@ -61,7 +68,7 @@ Based on browser inspection of https://www.lanacion.com.ar/:
 
 **Image:**
 - `<img>` inside `<picture>` element
-- Use `src` attribute (absolute URLs from CDN)
+- Use `src`/`data-src` first, fall back to `srcset`/`data-srcset`
 - Image `alt` attribute often contains a shorter version of headline
 
 **Sample Article HTML:**
@@ -96,7 +103,7 @@ Based on browser inspection of https://www.lanacion.com.ar/:
 
 **File:** `alembic/versions/<revision>_seed_lanacion_source.py`
 
-Create migration to seed La Nacion source.
+Create migration to seed La Nacion source. Make it idempotent so reruns in dev don't fail.
 
 ```python
 """seed lanacion source
@@ -121,12 +128,14 @@ def upgrade() -> None:
     op.execute(
         """
         INSERT INTO sources (name, url, is_enabled, created_at, updated_at)
-        VALUES (
+        SELECT
             'lanacion',
             'https://www.lanacion.com.ar',
             1,
             CURRENT_TIMESTAMP,
             CURRENT_TIMESTAMP
+        WHERE NOT EXISTS (
+            SELECT 1 FROM sources WHERE name = 'lanacion'
         )
         """
     )
@@ -154,7 +163,7 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup, Tag
 
 from news_scraper.logging import get_logger
-from news_scraper.parsers.base import ParsedArticle
+from news_scraper.parsers.base import ParsedArticle, Parser
 
 
 class _ParsedData(TypedDict):
@@ -170,7 +179,7 @@ class _ParsedData(TypedDict):
 BASE_URL = "https://www.lanacion.com.ar"
 
 
-class LaNacionParser:
+class LaNacionParser(Parser):
     """Parser for La Nacion front page HTML.
 
     Extracts articles from La Nacion's HTML structure. Articles are identified
@@ -219,8 +228,8 @@ class LaNacionParser:
                     )
                     seen_urls.add(parsed["url"])
             except Exception:
-                # Log error with stack trace and continue with next article
-                log.exception("Failed to parse article element")
+                # Log warning with stack trace and continue with next article
+                log.warning("Failed to parse article element", exc_info=True)
                 continue
 
         return articles
@@ -305,8 +314,27 @@ class LaNacionParser:
 
         # Check if the resolved URL is from an allowed host
         if parsed.netloc in allowed_hosts:
-            return resolved
+            return self._normalize_url(resolved)
         return None
+
+    def _normalize_url(self, url: str) -> str:
+        """Normalize article URL before deduplication.
+
+        Strips fragments and common tracking query params.
+        """
+        parsed = urlparse(url)
+        if not parsed.query:
+            return parsed._replace(fragment="").geturl()
+
+        query_parts = [
+            pair for pair in parsed.query.split("&")
+            if not pair.startswith("utm_") and pair != ""
+        ]
+        normalized = parsed._replace(
+            query="&".join(query_parts),
+            fragment="",
+        )
+        return normalized.geturl()
 
     def _extract_headline(self, element: Tag) -> str | None:
         """Extract headline text from article element.
@@ -388,7 +416,22 @@ class LaNacionParser:
                 if src and isinstance(src, str):
                     return self._resolve_image_url(src)
 
+            # Fall back to srcset/data-srcset for responsive images
+            for attr in ("srcset", "data-srcset"):
+                srcset = img.get(attr)
+                if srcset and isinstance(srcset, str):
+                    candidate = self._first_srcset_url(srcset)
+                    if candidate:
+                        return self._resolve_image_url(candidate)
+
         return None
+
+    def _first_srcset_url(self, srcset: str) -> str | None:
+        """Extract first URL from a srcset string."""
+        first = srcset.split(",")[0].strip()
+        if not first:
+            return None
+        return first.split()[0]
 
     def _resolve_image_url(self, url: str) -> str:
         """Resolve potentially relative image URL to absolute.
@@ -814,6 +857,13 @@ class TestLaNacionParserHelpers:
 class TestLaNacionParserRealHtml:
     """Integration tests using real HTML fixture from La Nacion."""
 
+    # Fixture-based expectations: update these constants only when regenerating
+    # the fixture. This keeps tests deterministic and avoids brittle ratio checks.
+
+    EXPECTED_ARTICLE_COUNT = 0  # Update to match fixture snapshot
+    EXPECTED_SUMMARY_COUNT = 0  # Update to match fixture snapshot
+    EXPECTED_WITH_IMAGES_COUNT = 0  # Update to match fixture snapshot
+
     @pytest.fixture
     def parser(self) -> LaNacionParser:
         """Create parser instance for tests."""
@@ -823,7 +873,7 @@ class TestLaNacionParserRealHtml:
     def lanacion_html(self) -> str:
         """Load real La Nacion HTML fixture."""
         fixture_path = Path(__file__).parent.parent / "fixtures" / "lanacion_sample.html"
-        return fixture_path.read_text()
+        return fixture_path.read_text(encoding="utf-8")
 
     def test_parse_real_html_extracts_articles(
         self, parser: LaNacionParser, lanacion_html: str
@@ -831,8 +881,8 @@ class TestLaNacionParserRealHtml:
         """Test parsing real La Nacion HTML extracts expected articles."""
         result = parser.parse(lanacion_html)
 
-        # Should extract significant number of articles
-        assert len(result) >= 50  # La Nacion typically has 100+ articles
+        # Fixture-based expectation: update constants when fixture changes
+        assert len(result) == self.EXPECTED_ARTICLE_COUNT
 
     def test_parse_real_html_first_article(
         self, parser: LaNacionParser, lanacion_html: str
@@ -895,8 +945,7 @@ class TestLaNacionParserRealHtml:
         result = parser.parse(lanacion_html)
 
         summaries = [a.summary for a in result if a.summary]
-        # La Nacion has some articles with summaries
-        assert len(summaries) >= 5
+        assert len(summaries) == self.EXPECTED_SUMMARY_COUNT
 
     def test_parse_real_html_most_have_images(
         self, parser: LaNacionParser, lanacion_html: str
@@ -905,8 +954,7 @@ class TestLaNacionParserRealHtml:
         result = parser.parse(lanacion_html)
 
         with_images = [a for a in result if a.image_url]
-        # Most La Nacion articles have images
-        assert len(with_images) >= len(result) * 0.8
+        assert len(with_images) == self.EXPECTED_WITH_IMAGES_COUNT
 ```
 
 **File:** `tests/parsers/test_registry.py` (Updated)
@@ -964,13 +1012,14 @@ uv run python -c "
 from news_scraper.browser import fetch_rendered_html
 
 html = fetch_rendered_html('https://www.lanacion.com.ar/')
-with open('tests/fixtures/lanacion_sample.html', 'w') as f:
+with open('tests/fixtures/lanacion_sample.html', 'w', encoding='utf-8') as f:
     f.write(html)
 print(f'Saved {len(html)} chars')
 "
 ```
 
 The fixture should contain enough articles to validate the parser works correctly with real HTML.
+Keep the fixture stable and avoid regenerating unless the site changes significantly.
 
 ### 6. Update Project Structure Documentation
 
@@ -1012,12 +1061,13 @@ Add La Nacion parser:
 - [ ] Extracts headline from `<h1>` (featured) or `<h2>` (regular) elements
 - [ ] Extracts summary from `<h2>` (when h1 exists) or `<h3>`
 - [ ] Extracts URL from `<a class="ln-link">` href attribute
-- [ ] Extracts image URL from `<img>` src attribute
+- [ ] Normalizes URLs (strip fragments/tracking params) before deduplication
+- [ ] Extracts image URL from `<img>` `src`/`data-src`, falls back to `srcset`/`data-srcset`
 - [ ] Resolves relative URLs to absolute using base URL
 - [ ] Rejects external URLs (non-lanacion.com.ar domains)
 - [ ] Deduplicates articles by URL (keeps first occurrence)
 - [ ] Assigns sequential positions (1-based)
-- [ ] Logs warning and continues if individual article fails to parse
+- [ ] Logs warning (with stack trace) and continues if individual article fails to parse
 
 ### CLI Integration
 - [ ] `news-scraper -s lanacion` works end-to-end
@@ -1066,7 +1116,11 @@ None.
 
 4. **URL validation**: Accept both `www.lanacion.com.ar` and `lanacion.com.ar` domains to handle any URL variations.
 
-5. **Image extraction**: Use `src` attribute from `<img>` elements. La Nacion serves images from CDN with absolute URLs.
+5. **Image extraction**: Prefer `src`/`data-src`, fall back to `srcset`/`data-srcset` for responsive images.
+
+6. **Headline text**: Keep headline text as-is (do not strip prefixes like "Análisis.").
+
+7. **Sponsored/advertorial cards**: Do not filter them yet; treat any `ln-card` as a candidate article.
 
 ## Future Work (Not in This Spec)
 

@@ -37,6 +37,12 @@ uv run alembic revision --autogenerate -m "description"
 uv run alembic revision -m "description"
 ```
 
+### Seeding Data
+
+Seed migrations must be idempotent. Use `INSERT ... WHERE NOT EXISTS` or
+`INSERT ... ON CONFLICT DO NOTHING` (when a unique constraint exists) to avoid
+failures on rerun in dev or CI.
+
 ### Rollback
 
 ```bash

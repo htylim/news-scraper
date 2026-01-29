@@ -35,3 +35,4 @@ Notes, learnings, and insights gathered during development
 - Use parser registry with instances (not classes) to avoid `type[Protocol]` typing issues
 - Deduplicate articles by URL using a set for O(1) lookup
 - Combine nested `with` statements using parenthesized context managers (ruff SIM117)
+- Always read/write HTML fixtures with `encoding="utf-8"` to preserve non-ASCII text
