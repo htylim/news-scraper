@@ -138,3 +138,36 @@ class TestArticleModel:
         db_session.add(article)
         with pytest.raises(IntegrityError):
             db_session.commit()
+
+    def test_headline_required(self, db_session: Session, source: Source) -> None:
+        """headline is required (NOT NULL)."""
+        article = Article(
+            url="https://test.com/no-headline",
+            position=1,
+            source_id=source.id,
+        )
+        db_session.add(article)
+        with pytest.raises(IntegrityError):
+            db_session.commit()
+
+    def test_url_required(self, db_session: Session, source: Source) -> None:
+        """url is required (NOT NULL)."""
+        article = Article(
+            headline="No URL",
+            position=1,
+            source_id=source.id,
+        )
+        db_session.add(article)
+        with pytest.raises(IntegrityError):
+            db_session.commit()
+
+    def test_position_required(self, db_session: Session, source: Source) -> None:
+        """position is required (NOT NULL)."""
+        article = Article(
+            headline="No Position",
+            url="https://test.com/no-position",
+            source_id=source.id,
+        )
+        db_session.add(article)
+        with pytest.raises(IntegrityError):
+            db_session.commit()

@@ -243,6 +243,81 @@ class TestInfobaeParser:
         assert len(result) == 1
         assert result[0].image_url == "https://cdn.example.com/image.jpg"
 
+    def test_parse_skips_card_without_href(self, parser: InfobaeParser) -> None:
+        """Test that cards without href and no nested link are skipped."""
+        html = """
+        <html>
+        <body>
+            <div class="story-card-ctn">
+                <h2 class="story-card-hl">No Link Article</h2>
+            </div>
+            <a class="story-card-ctn" href="/valid-article/">
+                <h2 class="story-card-hl">Valid Article</h2>
+            </a>
+        </body>
+        </html>
+        """
+        result = parser.parse(html)
+
+        # Card without href should be skipped
+        assert len(result) == 1
+        assert result[0].headline == "Valid Article"
+
+    def test_parse_uses_nested_link_fallback(self, parser: InfobaeParser) -> None:
+        """Test that nested <a href> is used when container has no href."""
+        html = """
+        <html>
+        <body>
+            <div class="story-card-ctn">
+                <a href="/nested-link-article/">
+                    <h2 class="story-card-hl">Nested Link Article</h2>
+                </a>
+            </div>
+        </body>
+        </html>
+        """
+        result = parser.parse(html)
+
+        assert len(result) == 1
+        assert result[0].headline == "Nested Link Article"
+        assert result[0].url == "https://www.infobae.com/nested-link-article/"
+
+    def test_parse_handles_element_exception(self, parser: InfobaeParser) -> None:
+        """Test that exceptions during element parsing are caught and skipped."""
+        from typing import Any
+        from unittest.mock import patch
+
+        html = """
+        <html>
+        <body>
+            <a class="story-card-ctn" href="/first-article/">
+                <h2 class="story-card-hl">First Article</h2>
+            </a>
+            <a class="story-card-ctn" href="/second-article/">
+                <h2 class="story-card-hl">Second Article</h2>
+            </a>
+        </body>
+        </html>
+        """
+        call_count = 0
+        original_parse = parser._parse_article_element
+
+        def mock_parse(element: Any) -> Any:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise RuntimeError("Simulated parsing error")
+            return original_parse(element)
+
+        with patch.object(parser, "_parse_article_element", side_effect=mock_parse):
+            result = parser.parse(html)
+
+        # First element raises exception and is skipped, second succeeds
+        assert len(result) == 1
+        assert result[0].headline == "Second Article"
+        # Position is 1 (skipped elements don't count)
+        assert result[0].position == 1
+
 
 class TestInfobaeParserHelpers:
     """Tests for InfobaeParser helper methods."""

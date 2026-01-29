@@ -106,3 +106,15 @@ class TestSourceModel:
         """Test empty name raises ValueError."""
         with pytest.raises(ValueError):
             Source(name="", url="https://invalid.com")
+
+    def test_none_name_raises(self) -> None:
+        """Test None name raises ValueError via validator."""
+        with pytest.raises(ValueError):
+            Source(name=None, url="https://invalid.com")
+
+    def test_url_required(self, db_session: Session) -> None:
+        """url is required (NOT NULL)."""
+        source = Source(name="nourl")
+        db_session.add(source)
+        with pytest.raises(IntegrityError):
+            db_session.commit()

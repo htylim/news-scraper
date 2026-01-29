@@ -140,3 +140,37 @@ class TestFetchRenderedHtml:
             call_kwargs = mock_browser.new_context.call_args.kwargs
             assert "user_agent" in call_kwargs
             assert "Mozilla/5.0" in call_kwargs["user_agent"]
+
+    def test_browser_error_on_launch_failure(self) -> None:
+        """Test BrowserError is raised when browser launch fails."""
+        from playwright.sync_api import Error as PlaywrightError
+
+        with patch("news_scraper.browser.sync_playwright") as mock_pw:
+            mock_chromium = mock_pw.return_value.__enter__.return_value.chromium
+            mock_chromium.launch.side_effect = PlaywrightError(
+                "Browser executable not found"
+            )
+
+            with pytest.raises(BrowserError, match="Browser executable not found"):
+                fetch_rendered_html("https://example.com")
+
+    def test_browser_error_on_content_failure(self) -> None:
+        """Test BrowserError is raised when page.content() fails."""
+        from playwright.sync_api import Error as PlaywrightError
+
+        with patch("news_scraper.browser.sync_playwright") as mock_pw:
+            mock_browser = MagicMock()
+            mock_context = MagicMock()
+            mock_page = MagicMock()
+            mock_page.content.side_effect = PlaywrightError("Page crashed")
+
+            mock_pw.return_value.__enter__.return_value.chromium.launch.return_value = (
+                mock_browser
+            )
+            mock_browser.new_context.return_value = mock_context
+            mock_context.new_page.return_value = mock_page
+
+            with pytest.raises(BrowserError, match="Page crashed"):
+                fetch_rendered_html("https://example.com")
+
+            mock_browser.close.assert_called_once()

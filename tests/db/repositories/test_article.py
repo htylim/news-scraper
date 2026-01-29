@@ -146,6 +146,39 @@ class TestArticleRepository:
 
         assert existing.last_seen_at == new_time
 
+    def test_upsert_clears_optional_fields(
+        self, db_session: Session, repo: ArticleRepository, source: Source
+    ) -> None:
+        """upsert_from_parsed clears optional fields when new data has None."""
+        # Create existing article with optional fields populated
+        existing = Article(
+            headline="Original",
+            url="https://test.com/clear-fields",
+            position=1,
+            source_id=source.id,
+            description="Original summary",
+            image_url="https://test.com/original.jpg",
+        )
+        db_session.add(existing)
+        db_session.commit()
+
+        # Upsert with None for optional fields
+        parsed = ParsedArticle(
+            headline="Updated",
+            url="https://test.com/clear-fields",
+            position=2,
+            summary=None,
+            image_url=None,
+        )
+
+        result = repo.upsert_from_parsed(parsed, source)
+        db_session.commit()
+
+        assert result is not None
+        assert result.id == existing.id
+        assert result.description is None
+        assert result.image_url is None
+
 
 class TestArticleRepositoryBulkUpsert:
     """Tests for bulk_upsert_from_parsed."""
@@ -310,3 +343,52 @@ class TestArticleRepositoryBulkUpsert:
         assert created == 1
         assert updated == 0
         assert skipped == 2
+
+    def test_bulk_upsert_sets_seen_at_on_created(
+        self, db_session: Session, repo: ArticleRepository, source: Source
+    ) -> None:
+        """bulk_upsert_from_parsed applies seen_at to newly created articles."""
+        from sqlalchemy import select
+
+        seen_at = datetime(2026, 1, 28, 10, 0, 0)
+        parsed = [
+            ParsedArticle(headline="New 1", url="https://bulk.com/new1", position=1),
+            ParsedArticle(headline="New 2", url="https://bulk.com/new2", position=2),
+        ]
+
+        repo.bulk_upsert_from_parsed(parsed, source, seen_at=seen_at)
+        db_session.commit()
+
+        stmt = select(Article).where(Article.source_id == source.id)
+        articles = db_session.scalars(stmt).all()
+
+        assert len(articles) == 2
+        for article in articles:
+            assert article.last_seen_at == seen_at
+
+    def test_bulk_upsert_sets_seen_at_on_updated(
+        self, db_session: Session, repo: ArticleRepository, source: Source
+    ) -> None:
+        """bulk_upsert_from_parsed applies seen_at to updated articles."""
+        old_time = datetime(2025, 1, 1, 0, 0, 0)
+        existing = Article(
+            headline="Existing",
+            url="https://bulk.com/existing",
+            position=5,
+            source_id=source.id,
+            last_seen_at=old_time,
+        )
+        db_session.add(existing)
+        db_session.commit()
+
+        new_time = datetime(2026, 1, 28, 12, 0, 0)
+        parsed = [
+            ParsedArticle(
+                headline="Updated", url="https://bulk.com/existing", position=1
+            ),
+        ]
+
+        repo.bulk_upsert_from_parsed(parsed, source, seen_at=new_time)
+        db_session.commit()
+
+        assert existing.last_seen_at == new_time

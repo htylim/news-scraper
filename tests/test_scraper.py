@@ -85,6 +85,36 @@ class TestScrape:
             assert exc_info.value.message == error_message
             assert exc_info.value.source_name == source.name
 
+    def test_scrape_empty_parse_result(self) -> None:
+        """Test scrape handles parser returning empty list."""
+        source = Source(name="infobae", url="https://www.infobae.com")
+        source.id = 1
+
+        with (
+            patch("news_scraper.scraper.fetch_rendered_html") as mock_fetch,
+            patch("news_scraper.scraper.get_parser") as mock_get_parser,
+            patch("news_scraper.scraper.get_session") as mock_get_session,
+            patch("news_scraper.scraper.ArticleRepository") as mock_repo_class,
+        ):
+            mock_fetch.return_value = "<html></html>"
+            mock_parser = MagicMock()
+            mock_parser.parse.return_value = []
+            mock_get_parser.return_value = mock_parser
+
+            # Mock session and repository
+            mock_session = MagicMock()
+            mock_get_session.return_value.__enter__.return_value = mock_session
+            mock_repo = MagicMock()
+            mock_repo.bulk_upsert_from_parsed.return_value = (0, 0, 0)
+            mock_repo_class.return_value = mock_repo
+
+            result = scrape(source)
+
+            assert result.articles == []
+            assert result.created_count == 0
+            assert result.updated_count == 0
+            assert result.skipped_count == 0
+
 
 class TestFormatArticle:
     """Tests for format_article function."""
@@ -157,6 +187,23 @@ class TestFormatArticle:
 
         assert "..." not in result
         assert short_summary in result
+
+    def test_format_article_escapes_rich_markup(self) -> None:
+        """Test that Rich markup in content is escaped to prevent formatting issues."""
+        article = ParsedArticle(
+            headline="[red]Breaking[/red] News",
+            url="https://example.com/[bold]article",
+            position=1,
+            summary="This has [blue]colors[/blue]",
+            image_url="https://example.com/[img].jpg",
+        )
+        result = format_article(article, 1)
+
+        # Rich escape converts [ to \[, so escaped brackets should appear
+        assert r"\[red]Breaking\[/" in result
+        assert r"https://example.com/\[bold]article" in result
+        assert r"\[blue]colors\[/" in result
+        assert "[red]Breaking[/red]" not in result
 
 
 class TestPrintScrapeResult:
