@@ -1,4 +1,4 @@
-# Documentation Writing Guidelines
+# Documentation Writing Instructions
 
 Standards for writing documentation in this project.
 

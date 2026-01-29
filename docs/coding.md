@@ -1,4 +1,4 @@
-# Coding Guidelines
+# Coding Rules and Instructions
 
 Standards and practices for writing code in this project.
 

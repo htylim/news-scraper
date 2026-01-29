@@ -1,4 +1,4 @@
-# Models Guidelines
+# Models Standards
 
 Standards for creating SQLAlchemy models.
 
