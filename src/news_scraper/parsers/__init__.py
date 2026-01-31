@@ -6,7 +6,11 @@ from news_scraper.parsers.registry import ParserNotFoundError, get_parser
 
 def load_site_parsers() -> None:
     """Import site parsers to register them."""
-    from news_scraper.parsers.sites import infobae, lanacion  # noqa: F401
+    from news_scraper.parsers.sites import (
+        infobae,  # noqa: F401
+        lanacion,  # noqa: F401
+        lapoliticaonline,  # noqa: F401
+    )
 
 
 __all__ = [

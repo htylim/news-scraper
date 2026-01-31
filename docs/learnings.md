@@ -46,6 +46,7 @@ Notes, learnings, and insights gathered during development
 - Add direct unit tests for URL/srcset helpers to pin edge-case behavior (fragments, non-http schemes, root paths).
 - Register parsers with a decorator and instantiate from classes in the registry.
 - Load site parser modules during app initialization to avoid registry import side effects.
+- When multiple headlines exist under a shared container, scope image lookup to the per-article wrapper and prefer matching the headline href to avoid cross-article image mismatches.
 
 ## Phase 6: CLI Scrape Command (S009)
 

@@ -5,6 +5,7 @@ import pytest
 from news_scraper.parsers import ParserNotFoundError, get_parser
 from news_scraper.parsers.sites.infobae import InfobaeParser
 from news_scraper.parsers.sites.lanacion import LaNacionParser
+from news_scraper.parsers.sites.lapoliticaonline import LaPoliticaOnlineParser
 
 
 class TestGetParser:
@@ -20,12 +21,19 @@ class TestGetParser:
         parser = get_parser("lanacion")
         assert isinstance(parser, LaNacionParser)
 
+    def test_get_lapoliticaonline_parser(self) -> None:
+        """Test getting La Política Online parser returns instance."""
+        parser = get_parser("lapoliticaonline")
+        assert isinstance(parser, LaPoliticaOnlineParser)
+
     def test_get_parser_case_insensitive(self) -> None:
         """Test parser lookup is case insensitive."""
         assert isinstance(get_parser("INFOBAE"), InfobaeParser)
         assert isinstance(get_parser("Infobae"), InfobaeParser)
         assert isinstance(get_parser("LANACION"), LaNacionParser)
         assert isinstance(get_parser("LaNacion"), LaNacionParser)
+        assert isinstance(get_parser("LAPOLITICAONLINE"), LaPoliticaOnlineParser)
+        assert isinstance(get_parser("LaPoliticaOnline"), LaPoliticaOnlineParser)
 
     def test_get_parser_unknown_source(self) -> None:
         """Test getting parser for unknown source raises error."""

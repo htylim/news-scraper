@@ -21,7 +21,8 @@ news-scraper/
 │   │   │   └── url.py
 │   │   └── sites/        # Site parsers
 │   │       ├── infobae.py
-│   │       └── lanacion.py
+│   │       ├── lanacion.py
+│   │       └── lapoliticaonline.py
 │   └── db/               # Database module
 │       ├── __init__.py   # Module exports
 │       ├── base.py       # DeclarativeBase + mixins
