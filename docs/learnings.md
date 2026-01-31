@@ -52,12 +52,18 @@ Notes, learnings, and insights gathered during development
 - Prefer explicit subcommands for actions; keep root callback for global options only.
 - Use an optional positional argument for the primary target; absence implies "all".
 - When root callback has `invoke_without_command=True`, it runs before subcommands - use it for initialization (logging, parser loading).
+- Global options should be passed before subcommands; avoid duplicating flags on subcommands.
 - For multi-source operations, validate all inputs before processing any to fail fast.
 - Deduplicate normalized inputs while preserving order using a set to track seen items.
 - In multi-source execution, continue processing remaining sources after per-source failures; track failures and exit with code 1 if any failed.
 - Print clear per-source headers before outputting results for better readability.
-- Use `typer.Argument` with default empty list `[]` for optional variadic positional arguments.
+- For optional variadic args, use `list[str] | None` defaulting to `None` and normalize to `[]` inside to satisfy ruff B006.
 
 ## Phase 7: Database Migrations
 
 - Seed migrations should be idempotent via `INSERT ... WHERE NOT EXISTS` or `ON CONFLICT DO NOTHING`.
+
+## Phase 8: Cursor Cloud Setup
+
+- Use `python3 -m uv ...` when `uv` is not on PATH after user installs.
+- Avoid system installs; create a `.venv` and use `uv pip install --python .venv/bin/python`.

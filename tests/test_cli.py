@@ -37,7 +37,6 @@ def cli_db_session(monkeypatch: pytest.MonkeyPatch) -> Generator[Session, None, 
 
     # Mock scrape to avoid actual browser calls
     def mock_scrape_fn(source: Source) -> ScrapeResult:
-        print(f"Scraping {source.name}")
         return ScrapeResult(
             articles=[
                 ParsedArticle(
@@ -93,7 +92,9 @@ class TestCliScrape:
         assert "Scraping clarin" in result.stdout
         # Ensure other sources are NOT in output
         assert "infobae" not in result.stdout or "Scraping infobae" not in result.stdout
-        assert "lanacion" not in result.stdout or "Scraping lanacion" not in result.stdout
+        assert (
+            "lanacion" not in result.stdout or "Scraping lanacion" not in result.stdout
+        )
 
     def test_scrape_case_insensitive_lookup(self, cli_db_session: Session) -> None:
         """Test source lookup is case-insensitive."""
@@ -122,7 +123,7 @@ class TestCliScrape:
         cli_db_session.add(source)
         cli_db_session.commit()
 
-        result = runner.invoke(app, ["scrape", "verbosesrc", "-v"])
+        result = runner.invoke(app, ["-v", "scrape", "verbosesrc"])
         assert result.exit_code == 0
         assert "Scraping verbosesrc" in result.stdout
 
@@ -192,7 +193,9 @@ class TestCliScrape:
         assert clarin_pos < infobae_pos
         assert "Scraping lanacion" not in result.stdout
 
-    def test_scrape_multiple_sources_deduplicates(self, cli_db_session: Session) -> None:
+    def test_scrape_multiple_sources_deduplicates(
+        self, cli_db_session: Session
+    ) -> None:
         """Test that duplicate source names are deduplicated."""
         source = Source(name="infobae", url="https://infobae.com")
         cli_db_session.add(source)
@@ -390,6 +393,7 @@ class TestCliHelp:
         assert "--verbose" in result.stdout
         assert "--version" in result.stdout
         assert "--help" in result.stdout
+        assert "--source" not in result.stdout
 
     def test_scrape_help(self) -> None:
         """Test that scrape command has help."""

@@ -48,12 +48,15 @@ uv run alembic upgrade head
 ## Usage
 
 ```bash
-# Scrape articles from a configured source
-news-scraper --source infobae
-news-scraper -s infobae
+# Scrape articles from all enabled sources
+news-scraper scrape
 
-# With verbose output
-news-scraper --source infobae --verbose
+# Scrape articles from one or more sources
+news-scraper scrape infobae
+news-scraper scrape infobae lanacion
+
+# With verbose output (global option)
+news-scraper --verbose scrape infobae
 
 # Show version
 news-scraper --version
@@ -65,7 +68,7 @@ news-scraper --help
 ### Running as a module
 
 ```bash
-python -m news_scraper --source infobae
+python -m news_scraper scrape infobae
 ```
 
 ### Supported Sources
