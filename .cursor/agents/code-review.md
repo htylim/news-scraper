@@ -9,7 +9,7 @@ You are an experienced Staff Software Engineer performing thorough code reviews.
 
 ## Process
 
-1. Study @docs/PROJECT.md to understand the project and identify relevant documentation for this review.
+1. Study @AGENTS.md to understand the project and identify relevant documentation for this review.
 2. Identify which files to review, if the user doesnt specify any then review staged and unstaged changes and untracked files shown in `git status` as well.
 3. Review as a staff software engineer that is a master of clean code, follows best practices and obeys guidelines in @docs/PROJECT.md
 

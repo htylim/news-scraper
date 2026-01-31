@@ -4,6 +4,7 @@ import pytest
 
 from news_scraper.parsers import ParserNotFoundError, get_parser
 from news_scraper.parsers.infobae import InfobaeParser
+from news_scraper.parsers.lanacion import LaNacionParser
 
 
 class TestGetParser:
@@ -14,10 +15,17 @@ class TestGetParser:
         parser = get_parser("infobae")
         assert isinstance(parser, InfobaeParser)
 
+    def test_get_lanacion_parser(self) -> None:
+        """Test getting La Nacion parser returns instance."""
+        parser = get_parser("lanacion")
+        assert isinstance(parser, LaNacionParser)
+
     def test_get_parser_case_insensitive(self) -> None:
         """Test parser lookup is case insensitive."""
         assert isinstance(get_parser("INFOBAE"), InfobaeParser)
         assert isinstance(get_parser("Infobae"), InfobaeParser)
+        assert isinstance(get_parser("LANACION"), LaNacionParser)
+        assert isinstance(get_parser("LaNacion"), LaNacionParser)
 
     def test_get_parser_unknown_source(self) -> None:
         """Test getting parser for unknown source raises error."""

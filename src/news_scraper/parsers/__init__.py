@@ -2,6 +2,7 @@
 
 from news_scraper.parsers.base import ParsedArticle, Parser
 from news_scraper.parsers.infobae import InfobaeParser
+from news_scraper.parsers.lanacion import LaNacionParser
 
 __all__ = ["ParsedArticle", "Parser", "get_parser", "ParserNotFoundError"]
 
@@ -9,6 +10,7 @@ __all__ = ["ParsedArticle", "Parser", "get_parser", "ParserNotFoundError"]
 # Using instances avoids typing issues with type[Protocol]
 _PARSERS: dict[str, Parser] = {
     "infobae": InfobaeParser(),
+    "lanacion": LaNacionParser(),
 }
 
 

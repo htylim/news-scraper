@@ -15,7 +15,8 @@ news-scraper/
 │   ├── parsers/          # Site-specific HTML parsers
 │   │   ├── __init__.py   # Parser registry
 │   │   ├── base.py       # Parser protocol + ParsedArticle dataclass
-│   │   └── infobae.py    # Infobae parser implementation
+│   │   ├── infobae.py    # Infobae parser implementation
+│   │   └── lanacion.py   # La Nacion parser implementation
 │   └── db/               # Database module
 │       ├── __init__.py   # Module exports
 │       ├── base.py       # DeclarativeBase + mixins

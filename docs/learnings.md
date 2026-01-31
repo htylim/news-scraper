@@ -36,3 +36,4 @@ Notes, learnings, and insights gathered during development
 - Deduplicate articles by URL using a set for O(1) lookup
 - Combine nested `with` statements using parenthesized context managers (ruff SIM117)
 - Always read/write HTML fixtures with `encoding="utf-8"` to preserve non-ASCII text
+- BeautifulSoup `get_text(strip=True)` strips each text segment before joining; when a headline is split across siblings (e.g. `<span>Prefix. </span>Rest`), the trailing space in the first segment is removed, producing "Prefix.Rest". Use `get_text(strip=False)` and then `.strip()` on the full result to preserve internal spaces.
