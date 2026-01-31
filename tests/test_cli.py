@@ -69,7 +69,7 @@ class TestCliScrape:
         cli_db_session.add(source)
         cli_db_session.commit()
 
-        result = runner.invoke(app, ["-s", "infobae"])
+        result = runner.invoke(app, ["scrape", "infobae"])
         assert result.exit_code == 0
         assert "Scraping infobae" in result.stdout
 
@@ -88,12 +88,12 @@ class TestCliScrape:
         cli_db_session.commit()
 
         # Request specific source
-        result = runner.invoke(app, ["-s", "clarin"])
+        result = runner.invoke(app, ["scrape", "clarin"])
         assert result.exit_code == 0
         assert "Scraping clarin" in result.stdout
         # Ensure other sources are NOT in output
-        assert "infobae" not in result.stdout
-        assert "lanacion" not in result.stdout
+        assert "infobae" not in result.stdout or "Scraping infobae" not in result.stdout
+        assert "lanacion" not in result.stdout or "Scraping lanacion" not in result.stdout
 
     def test_scrape_case_insensitive_lookup(self, cli_db_session: Session) -> None:
         """Test source lookup is case-insensitive."""
@@ -102,7 +102,7 @@ class TestCliScrape:
         cli_db_session.commit()
 
         # Uppercase input should find lowercase source
-        result = runner.invoke(app, ["-s", "INFOBAE"])
+        result = runner.invoke(app, ["scrape", "INFOBAE"])
         assert result.exit_code == 0
         assert "Scraping infobae" in result.stdout
 
@@ -112,36 +112,115 @@ class TestCliScrape:
         cli_db_session.add(source)
         cli_db_session.commit()
 
-        result = runner.invoke(app, ["-s", "LaNacion"])
+        result = runner.invoke(app, ["scrape", "LaNacion"])
         assert result.exit_code == 0
         assert "Scraping lanacion" in result.stdout
 
-    def test_scrape_with_long_option(self, cli_db_session: Session) -> None:
-        """Test --source long option works."""
-        source = Source(name="testsource", url="https://test.com")
-        cli_db_session.add(source)
-        cli_db_session.commit()
-
-        result = runner.invoke(app, ["--source", "testsource"])
-        assert result.exit_code == 0
-        assert "Scraping testsource" in result.stdout
-
     def test_scrape_with_verbose(self, cli_db_session: Session) -> None:
-        """Test verbose flag works with source."""
+        """Test verbose flag works with scrape command."""
         source = Source(name="verbosesrc", url="https://verbose.com")
         cli_db_session.add(source)
         cli_db_session.commit()
 
-        result = runner.invoke(app, ["-s", "verbosesrc", "-v"])
+        result = runner.invoke(app, ["scrape", "verbosesrc", "-v"])
         assert result.exit_code == 0
         assert "Scraping verbosesrc" in result.stdout
+
+    def test_scrape_all_enabled_sources(self, cli_db_session: Session) -> None:
+        """Test scraping all enabled sources when no source names provided."""
+        sources = [
+            Source(name="infobae", url="https://infobae.com"),
+            Source(name="clarin", url="https://clarin.com"),
+            Source(name="lanacion", url="https://lanacion.com.ar"),
+        ]
+        for s in sources:
+            cli_db_session.add(s)
+        cli_db_session.commit()
+
+        result = runner.invoke(app, ["scrape"])
+        assert result.exit_code == 0
+        assert "Scraping clarin" in result.stdout
+        assert "Scraping infobae" in result.stdout
+        assert "Scraping lanacion" in result.stdout
+
+    def test_scrape_all_skips_disabled_sources(self, cli_db_session: Session) -> None:
+        """Test that scraping all sources skips disabled ones."""
+        sources = [
+            Source(name="enabled1", url="https://enabled1.com"),
+            Source(name="disabled", url="https://disabled.com", is_enabled=False),
+            Source(name="enabled2", url="https://enabled2.com"),
+        ]
+        for s in sources:
+            cli_db_session.add(s)
+        cli_db_session.commit()
+
+        result = runner.invoke(app, ["scrape"])
+        assert result.exit_code == 0
+        assert "Scraping enabled1" in result.stdout
+        assert "Scraping enabled2" in result.stdout
+        assert "Scraping disabled" not in result.stdout
+
+    def test_scrape_all_no_enabled_sources(self, cli_db_session: Session) -> None:
+        """Test error when no enabled sources exist."""
+        source = Source(name="disabled", url="https://disabled.com", is_enabled=False)
+        cli_db_session.add(source)
+        cli_db_session.commit()
+
+        result = runner.invoke(app, ["scrape"])
+        assert result.exit_code == 1
+        assert "No enabled sources found" in result.stdout
+
+    def test_scrape_multiple_sources(self, cli_db_session: Session) -> None:
+        """Test scraping multiple sources in one command."""
+        sources = [
+            Source(name="infobae", url="https://infobae.com"),
+            Source(name="clarin", url="https://clarin.com"),
+            Source(name="lanacion", url="https://lanacion.com.ar"),
+        ]
+        for s in sources:
+            cli_db_session.add(s)
+        cli_db_session.commit()
+
+        result = runner.invoke(app, ["scrape", "clarin", "infobae"])
+        assert result.exit_code == 0
+        # Should scrape in order provided
+        output = result.stdout
+        clarin_pos = output.find("Scraping clarin")
+        infobae_pos = output.find("Scraping infobae")
+        assert clarin_pos != -1
+        assert infobae_pos != -1
+        assert clarin_pos < infobae_pos
+        assert "Scraping lanacion" not in result.stdout
+
+    def test_scrape_multiple_sources_deduplicates(self, cli_db_session: Session) -> None:
+        """Test that duplicate source names are deduplicated."""
+        source = Source(name="infobae", url="https://infobae.com")
+        cli_db_session.add(source)
+        cli_db_session.commit()
+
+        result = runner.invoke(app, ["scrape", "infobae", "INFOBAE", "infobae"])
+        assert result.exit_code == 0
+        # Should only scrape once
+        assert result.stdout.count("Scraping infobae") == 1
+
+    def test_scrape_multiple_sources_case_insensitive_dedup(
+        self, cli_db_session: Session
+    ) -> None:
+        """Test that case variations are deduplicated."""
+        source = Source(name="infobae", url="https://infobae.com")
+        cli_db_session.add(source)
+        cli_db_session.commit()
+
+        result = runner.invoke(app, ["scrape", "infobae", "INFOBAE"])
+        assert result.exit_code == 0
+        assert result.stdout.count("Scraping infobae") == 1
 
     def test_source_not_found(self, cli_db_session: Session) -> None:
         """Test error when source doesn't exist."""
         _ = cli_db_session  # Ensure fixture is active for get_session patch
-        result = runner.invoke(app, ["-s", "nonexistent"])
+        result = runner.invoke(app, ["scrape", "nonexistent"])
         assert result.exit_code == 1
-        assert "Source not found" in result.stdout
+        assert "Source not found or disabled" in result.stdout
         assert "nonexistent" in result.stdout
 
     def test_source_not_found_among_multiple(self, cli_db_session: Session) -> None:
@@ -154,9 +233,9 @@ class TestCliScrape:
             cli_db_session.add(s)
         cli_db_session.commit()
 
-        result = runner.invoke(app, ["-s", "nonexistent"])
+        result = runner.invoke(app, ["scrape", "nonexistent"])
         assert result.exit_code == 1
-        assert "Source not found" in result.stdout
+        assert "Source not found or disabled" in result.stdout
 
     def test_source_disabled(self, cli_db_session: Session) -> None:
         """Test error when source is disabled."""
@@ -164,20 +243,44 @@ class TestCliScrape:
         cli_db_session.add(source)
         cli_db_session.commit()
 
-        result = runner.invoke(app, ["-s", "disabled"])
+        result = runner.invoke(app, ["scrape", "disabled"])
         assert result.exit_code == 1
-        assert "Source is disabled" in result.stdout
+        assert "Source not found or disabled" in result.stdout
+        assert "disabled" in result.stdout
 
-    def test_missing_source_option(self) -> None:
-        """Test error when -s option is missing."""
-        result = runner.invoke(app, [])
-        assert result.exit_code != 0
-        # Check for our custom error message or Typer's default
-        assert "Missing" in result.stdout or "--source" in result.stdout
+    def test_multiple_sources_one_missing(self, cli_db_session: Session) -> None:
+        """Test that if any source is missing, command fails without scraping."""
+        source = Source(name="infobae", url="https://infobae.com")
+        cli_db_session.add(source)
+        cli_db_session.commit()
+
+        result = runner.invoke(app, ["scrape", "infobae", "nonexistent"])
+        assert result.exit_code == 1
+        assert "Source not found or disabled" in result.stdout
+        assert "nonexistent" in result.stdout
+        # Should not scrape infobae since validation failed
+        assert "Scraping infobae" not in result.stdout
+
+    def test_multiple_sources_one_disabled(self, cli_db_session: Session) -> None:
+        """Test that if any source is disabled, command fails without scraping."""
+        sources = [
+            Source(name="enabled", url="https://enabled.com"),
+            Source(name="disabled", url="https://disabled.com", is_enabled=False),
+        ]
+        for s in sources:
+            cli_db_session.add(s)
+        cli_db_session.commit()
+
+        result = runner.invoke(app, ["scrape", "enabled", "disabled"])
+        assert result.exit_code == 1
+        assert "Source not found or disabled" in result.stdout
+        assert "disabled" in result.stdout
+        # Should not scrape enabled since validation failed
+        assert "Scraping enabled" not in result.stdout
 
     def test_invalid_source_name_with_spaces(self) -> None:
         """Test error when source name contains spaces."""
-        result = runner.invoke(app, ["-s", "invalid source"])
+        result = runner.invoke(app, ["scrape", "invalid source"])
         assert result.exit_code == 1
         assert (
             "must contain only" in result.stdout.lower()
@@ -186,12 +289,12 @@ class TestCliScrape:
 
     def test_invalid_source_name_with_special_chars(self) -> None:
         """Test error when source name contains invalid characters."""
-        result = runner.invoke(app, ["-s", "source@name!"])
+        result = runner.invoke(app, ["scrape", "source@name!"])
         assert result.exit_code == 1
 
     def test_invalid_source_name_empty(self) -> None:
         """Test error when source name is empty."""
-        result = runner.invoke(app, ["-s", ""])
+        result = runner.invoke(app, ["scrape", ""])
         assert result.exit_code == 1
 
     def test_scraper_error_handling(
@@ -210,9 +313,49 @@ class TestCliScrape:
         )
         monkeypatch.setattr("news_scraper.cli.scrape", mock_scrape)
 
-        result = runner.invoke(app, ["-s", "failsource"])
+        result = runner.invoke(app, ["scrape", "failsource"])
         assert result.exit_code == 1
         assert "Failed to scrape failsource" in result.stdout
+        assert "Connection timed out" in result.stdout
+
+    def test_scraper_error_continues_with_multiple_sources(
+        self, cli_db_session: Session, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that ScraperError in one source doesn't stop other sources."""
+        sources = [
+            Source(name="success", url="https://success.com"),
+            Source(name="failure", url="https://failure.com"),
+        ]
+        for s in sources:
+            cli_db_session.add(s)
+        cli_db_session.commit()
+
+        # Mock scrape to fail for "failure" source
+        def mock_scrape_fn(source: Source) -> ScrapeResult:
+            if source.name == "failure":
+                raise ScraperError(
+                    message="Connection timed out", source_name="failure"
+                )
+            print(f"Scraping {source.name}")
+            return ScrapeResult(
+                articles=[
+                    ParsedArticle(
+                        headline="Test Article",
+                        url=f"https://{source.name}.com/article",
+                        position=1,
+                    )
+                ],
+                created_count=1,
+                updated_count=0,
+                skipped_count=0,
+            )
+
+        monkeypatch.setattr("news_scraper.cli.scrape", mock_scrape_fn)
+
+        result = runner.invoke(app, ["scrape", "success", "failure"])
+        assert result.exit_code == 1  # Should exit with error code
+        assert "Scraping success" in result.stdout
+        assert "Failed to scrape failure" in result.stdout
         assert "Connection timed out" in result.stdout
 
 
@@ -226,8 +369,8 @@ class TestCliVersion:
         assert __version__ in result.stdout
 
     def test_version_short_flag(self) -> None:
-        """Test that version takes precedence."""
-        result = runner.invoke(app, ["--version", "-s", "any"])
+        """Test that version works on root command."""
+        result = runner.invoke(app, ["--version"])
         assert result.exit_code == 0
         assert __version__ in result.stdout
 
@@ -239,8 +382,7 @@ class TestCliHelp:
         """Test that --help flag shows help."""
         result = runner.invoke(app, ["--help"])
         assert result.exit_code == 0
-        assert "--source" in result.stdout
-        assert "-s" in result.stdout
+        assert "scrape" in result.stdout
 
     def test_help_shows_options(self) -> None:
         """Test that help shows all options."""
@@ -248,3 +390,9 @@ class TestCliHelp:
         assert "--verbose" in result.stdout
         assert "--version" in result.stdout
         assert "--help" in result.stdout
+
+    def test_scrape_help(self) -> None:
+        """Test that scrape command has help."""
+        result = runner.invoke(app, ["scrape", "--help"])
+        assert result.exit_code == 0
+        assert "Source name(s) to scrape" in result.stdout

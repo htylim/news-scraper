@@ -51,6 +51,12 @@ Notes, learnings, and insights gathered during development
 
 - Prefer explicit subcommands for actions; keep root callback for global options only.
 - Use an optional positional argument for the primary target; absence implies "all".
+- When root callback has `invoke_without_command=True`, it runs before subcommands - use it for initialization (logging, parser loading).
+- For multi-source operations, validate all inputs before processing any to fail fast.
+- Deduplicate normalized inputs while preserving order using a set to track seen items.
+- In multi-source execution, continue processing remaining sources after per-source failures; track failures and exit with code 1 if any failed.
+- Print clear per-source headers before outputting results for better readability.
+- Use `typer.Argument` with default empty list `[]` for optional variadic positional arguments.
 
 ## Phase 7: Database Migrations
 

@@ -37,9 +37,6 @@ def version_callback(value: bool) -> None:
 @app.callback(invoke_without_command=True)
 def main(
     _ctx: typer.Context,
-    source_name: Annotated[
-        str | None, typer.Option("--source", "-s", help="Source name to scrape")
-    ] = None,
     verbose: Annotated[
         bool, typer.Option("--verbose", "-v", help="Enable verbose output")
     ] = False,
@@ -53,7 +50,7 @@ def main(
         ),
     ] = None,
 ) -> None:
-    """Scrape news from a configured source."""
+    """A professional CLI for scraping news articles."""
     # Initialize logging once at startup
     configure_logging()
     log = get_logger()
@@ -63,46 +60,97 @@ def main(
 
     load_site_parsers()
 
-    # Source is required when not showing help/version
-    if source_name is None:
-        console.print("[red]Error:[/red] Missing required option: --source / -s")
-        raise typer.Exit(code=1)
 
-    # Validate and normalize source name (case-insensitive)
-    try:
-        normalized_name = validate_slug(source_name, field_name="source")
-    except ValidationError as e:
-        log.error("Invalid source name", source=source_name, error=str(e))
-        console.print(f"[red]Error:[/red] {e.message}")
-        raise typer.Exit(code=1) from None
+@app.command(name="scrape")
+def scrape_cmd(
+    source_names: Annotated[
+        list[str],
+        typer.Argument(help="Source name(s) to scrape. If omitted, scrapes all enabled sources."),
+    ] = [],
+    verbose: Annotated[
+        bool, typer.Option("--verbose", "-v", help="Enable verbose output")
+    ] = False,
+) -> None:
+    """Scrape news from configured source(s).
 
-    # Lookup source by normalized name (SQLAlchemy 2.0 style)
-    # Note: Source names are stored lowercase in the database, and the input
-    # has been normalized to lowercase above, so this exact match query is
-    # effectively case-insensitive.
+    If no source names are provided, scrapes all enabled sources.
+    If one or more source names are provided, scrapes only those sources.
+    """
+    log = get_logger()
+
+    if verbose:
+        log.debug("Verbose mode enabled")
+
     with get_session() as session:
-        stmt = select(Source).where(Source.name == normalized_name)
-        source = session.scalars(stmt).first()
+        sources_to_scrape: list[Source] = []
 
-        if source is None:
-            log.error("Source not found", source=normalized_name)
-            console.print(f"[red]Error:[/red] Source not found: {normalized_name}")
+        if source_names:
+            # Validate and normalize all source names
+            normalized_names: list[str] = []
+            for source_name in source_names:
+                try:
+                    normalized = validate_slug(source_name, field_name="source")
+                    normalized_names.append(normalized)
+                except ValidationError as e:
+                    log.error("Invalid source name", source=source_name, error=str(e))
+                    console.print(f"[red]Error:[/red] {e.message}")
+                    raise typer.Exit(code=1) from None
+
+            # Deduplicate while preserving order
+            seen: set[str] = set()
+            unique_normalized: list[str] = []
+            for name in normalized_names:
+                if name not in seen:
+                    seen.add(name)
+                    unique_normalized.append(name)
+
+            # Lookup sources
+            missing_or_disabled: list[str] = []
+            for normalized_name in unique_normalized:
+                stmt = select(Source).where(Source.name == normalized_name)
+                source = session.scalars(stmt).first()
+
+                if source is None:
+                    missing_or_disabled.append(normalized_name)
+                    log.error("Source not found", source=normalized_name)
+                elif not source.is_enabled:
+                    missing_or_disabled.append(normalized_name)
+                    log.error("Source is disabled", source=normalized_name)
+                else:
+                    sources_to_scrape.append(source)
+
+            if missing_or_disabled:
+                for name in missing_or_disabled:
+                    console.print(f"[red]Error:[/red] Source not found or disabled: {name}")
+                raise typer.Exit(code=1)
+        else:
+            # Query all enabled sources, ordered by name
+            stmt = select(Source).where(Source.is_enabled == True).order_by(Source.name)
+            sources_to_scrape = list(session.scalars(stmt).all())
+
+            if not sources_to_scrape:
+                console.print("[red]Error:[/red] No enabled sources found")
+                raise typer.Exit(code=1)
+
+        # Scrape each source
+        has_failures = False
+        for source in sources_to_scrape:
+            console.print(f"\n[bold]Scraping {source.name}[/bold]")
+            console.print("=" * 80)
+
+            log.info("Scraping source", source=source.name)
+            try:
+                result = scrape(source)
+                print_scrape_result(result)
+            except ScraperError as e:
+                has_failures = True
+                console.print(
+                    f"[red]Error:[/red] Failed to scrape {e.source_name}: {e.message}"
+                )
+                log.error("Scraping failed", source=e.source_name, error=e.message)
+
+        if has_failures:
             raise typer.Exit(code=1)
-
-        if not source.is_enabled:
-            log.error("Source is disabled", source=normalized_name)
-            console.print(f"[red]Error:[/red] Source is disabled: {normalized_name}")
-            raise typer.Exit(code=1)
-
-        log.info("Scraping source", source=normalized_name)
-        try:
-            result = scrape(source)
-            print_scrape_result(result)
-        except ScraperError as e:
-            console.print(
-                f"[red]Error:[/red] Failed to scrape {e.source_name}: {e.message}"
-            )
-            raise typer.Exit(code=1) from None
 
 
 if __name__ == "__main__":
