@@ -46,3 +46,8 @@ Notes, learnings, and insights gathered during development
 - Add direct unit tests for URL/srcset helpers to pin edge-case behavior (fragments, non-http schemes, root paths).
 - Register parsers with a decorator and instantiate from classes in the registry.
 - Load site parser modules during app initialization to avoid registry import side effects.
+
+## Phase 6: CLI Scrape Command (S009)
+
+- Prefer explicit subcommands for actions; keep root callback for global options only.
+- Use an optional positional argument for the primary target; absence implies "all".
