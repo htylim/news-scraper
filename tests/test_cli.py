@@ -91,10 +91,7 @@ class TestCliScrape:
         assert result.exit_code == 0
         assert "Scraping clarin" in result.stdout
         # Ensure other sources are NOT in output
-        assert (
-            "infobae" not in result.stdout
-            or "Scraping infobae" not in result.stdout
-        )
+        assert "infobae" not in result.stdout or "Scraping infobae" not in result.stdout
         assert (
             "lanacion" not in result.stdout or "Scraping lanacion" not in result.stdout
         )
