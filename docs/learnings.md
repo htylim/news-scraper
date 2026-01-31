@@ -62,3 +62,8 @@ Notes, learnings, and insights gathered during development
 ## Phase 7: Database Migrations
 
 - Seed migrations should be idempotent via `INSERT ... WHERE NOT EXISTS` or `ON CONFLICT DO NOTHING`.
+
+## Phase 8: Cursor Cloud Setup
+
+- Use `python3 -m uv ...` when `uv` is not on PATH after user installs.
+- Avoid system installs; create a `.venv` and use `uv pip install --python .venv/bin/python`.
