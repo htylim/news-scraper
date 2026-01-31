@@ -52,6 +52,7 @@ Notes, learnings, and insights gathered during development
 - Prefer explicit subcommands for actions; keep root callback for global options only.
 - Use an optional positional argument for the primary target; absence implies "all".
 - When root callback has `invoke_without_command=True`, it runs before subcommands - use it for initialization (logging, parser loading).
+- Global options should be passed before subcommands; avoid duplicating flags on subcommands.
 - For multi-source operations, validate all inputs before processing any to fail fast.
 - Deduplicate normalized inputs while preserving order using a set to track seen items.
 - In multi-source execution, continue processing remaining sources after per-source failures; track failures and exit with code 1 if any failed.

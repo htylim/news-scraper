@@ -122,7 +122,7 @@ class TestCliScrape:
         cli_db_session.add(source)
         cli_db_session.commit()
 
-        result = runner.invoke(app, ["scrape", "verbosesrc", "-v"])
+        result = runner.invoke(app, ["-v", "scrape", "verbosesrc"])
         assert result.exit_code == 0
         assert "Scraping verbosesrc" in result.stdout
 
@@ -390,6 +390,7 @@ class TestCliHelp:
         assert "--verbose" in result.stdout
         assert "--version" in result.stdout
         assert "--help" in result.stdout
+        assert "--source" not in result.stdout
 
     def test_scrape_help(self) -> None:
         """Test that scrape command has help."""

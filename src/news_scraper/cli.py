@@ -67,9 +67,6 @@ def scrape_cmd(
         list[str],
         typer.Argument(help="Source name(s) to scrape. If omitted, scrapes all enabled sources."),
     ] = [],
-    verbose: Annotated[
-        bool, typer.Option("--verbose", "-v", help="Enable verbose output")
-    ] = False,
 ) -> None:
     """Scrape news from configured source(s).
 
@@ -77,9 +74,6 @@ def scrape_cmd(
     If one or more source names are provided, scrapes only those sources.
     """
     log = get_logger()
-
-    if verbose:
-        log.debug("Verbose mode enabled")
 
     with get_session() as session:
         sources_to_scrape: list[Source] = []
