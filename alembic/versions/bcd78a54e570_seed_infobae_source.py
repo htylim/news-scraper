@@ -22,12 +22,14 @@ def upgrade() -> None:
     op.execute(
         """
         INSERT INTO sources (name, url, is_enabled, created_at, updated_at)
-        VALUES (
+        SELECT
             'infobae',
             'https://www.infobae.com',
             1,
             CURRENT_TIMESTAMP,
             CURRENT_TIMESTAMP
+        WHERE NOT EXISTS (
+            SELECT 1 FROM sources WHERE name = 'infobae'
         )
         """
     )

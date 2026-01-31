@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from typing import ClassVar, TypedDict
@@ -84,10 +83,22 @@ class BaseParser(ABC):
                 title = (parsed.get("title") or "").strip()
                 url = (parsed.get("url") or "").strip()
                 if not title or not url:
+                    log.error(
+                        "ParsedArticleData missing required field(s): title or url",
+                        source=self.source,
+                        raw_parsed=parsed,
+                        position=index,
+                    )
                     continue
 
                 dedupe_key = self.dedupe_key(url)
                 if dedupe_key in seen:
+                    log.warning(
+                        "Duplicate article encountered, skipping",
+                        source=self.source,
+                        url=url,
+                        position=index,
+                    )
                     continue
 
                 summary = (parsed.get("summary") or "").strip() or None
@@ -124,7 +135,7 @@ class BaseParser(ABC):
         return url
 
     @abstractmethod
-    def iter_article_elements(self, soup: BeautifulSoup) -> Iterable[Tag]:
+    def iter_article_elements(self, soup: BeautifulSoup) -> list[Tag]:
         """Yield candidate article elements from the soup."""
         raise NotImplementedError
 

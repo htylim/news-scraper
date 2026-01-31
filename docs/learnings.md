@@ -51,3 +51,7 @@ Notes, learnings, and insights gathered during development
 
 - Prefer explicit subcommands for actions; keep root callback for global options only.
 - Use an optional positional argument for the primary target; absence implies "all".
+
+## Phase 7: Database Migrations
+
+- Seed migrations should be idempotent via `INSERT ... WHERE NOT EXISTS` or `ON CONFLICT DO NOTHING`.
