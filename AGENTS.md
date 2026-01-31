@@ -21,6 +21,7 @@
 - [Models Standards](./docs/models.md)
 - [Queries](./docs/queries.md)
 - [Learnings](./docs/learnings.md)
+- [Parsers](./docs/parsers.md)
 
 ## Current State
 

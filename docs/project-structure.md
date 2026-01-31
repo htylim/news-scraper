@@ -13,10 +13,15 @@ news-scraper/
 │   ├── scraper.py        # Scraper module
 │   ├── validation.py     # Input validation utilities
 │   ├── parsers/          # Site-specific HTML parsers
-│   │   ├── __init__.py   # Parser registry
-│   │   ├── base.py       # Parser protocol + ParsedArticle dataclass
-│   │   ├── infobae.py    # Infobae parser implementation
-│   │   └── lanacion.py   # La Nacion parser implementation
+│   │   ├── __init__.py   # Parser exports
+│   │   ├── base.py       # BaseParser + ParsedArticle types
+│   │   ├── registry.py   # Parser registry
+│   │   ├── utils/        # Shared parser utilities
+│   │   │   ├── images.py
+│   │   │   └── url.py
+│   │   └── sites/        # Site parsers
+│   │       ├── infobae.py
+│   │       └── lanacion.py
 │   └── db/               # Database module
 │       ├── __init__.py   # Module exports
 │       ├── base.py       # DeclarativeBase + mixins
@@ -35,6 +40,7 @@ news-scraper/
 ├── data/                 # SQLite database (gitignored)
 ├── tests/                # Test files
 ├── docs/                 # Documentation
+│   ├── parsers.md        # How to add a parser
 │   └── specs/            # Feature specs
 ├── alembic.ini           # Alembic config
 └── pyproject.toml        # Package config

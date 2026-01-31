@@ -10,6 +10,7 @@ from news_scraper import __version__
 from news_scraper.db import get_session
 from news_scraper.db.models import Source
 from news_scraper.logging import configure_logging, get_logger
+from news_scraper.parsers import load_site_parsers
 from news_scraper.scraper import ScraperError, print_scrape_result, scrape
 from news_scraper.validation import ValidationError, validate_slug
 
@@ -59,6 +60,8 @@ def main(
 
     if verbose:
         log.debug("Verbose mode enabled")
+
+    load_site_parsers()
 
     # Source is required when not showing help/version
     if source_name is None:

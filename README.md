@@ -154,7 +154,7 @@ news-scraper/
 │   ├── validation.py         # Input validation
 │   ├── parsers/              # Site-specific HTML parsers
 │   │   ├── __init__.py       # Parser registry
-│   │   ├── base.py           # Parser protocol + Article model
+│   │   ├── base.py           # BaseParser + Article types
 │   │   └── infobae.py        # Infobae parser
 │   └── db/                   # Database layer
 │       ├── __init__.py       # Module exports

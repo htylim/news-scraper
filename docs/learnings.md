@@ -31,9 +31,18 @@ Notes, learnings, and insights gathered during development
 - Add type annotations for BeautifulSoup `get_text()` return values to satisfy mypy strict mode (e.g., `text: str = element.get_text(strip=True)`)
 - Add mypy overrides for `bs4.*` and `lxml.*` modules (no stubs available)
 - Use frozen dataclasses for immutable data transfer objects (Article) - provides hashability for deduplication
-- Strategy pattern with Protocol enables adding new parsers without modifying existing code
-- Use parser registry with instances (not classes) to avoid `type[Protocol]` typing issues
+- Use `BaseParser` as the shared interface for site parsers; Protocol not needed
+- Keep registry storing parser classes and returning instances for simple typing
 - Deduplicate articles by URL using a set for O(1) lookup
 - Combine nested `with` statements using parenthesized context managers (ruff SIM117)
 - Always read/write HTML fixtures with `encoding="utf-8"` to preserve non-ASCII text
 - BeautifulSoup `get_text(strip=True)` strips each text segment before joining; when a headline is split across siblings (e.g. `<span>Prefix. </span>Rest`), the trailing space in the first segment is removed, producing "Prefix.Rest". Use `get_text(strip=False)` and then `.strip()` on the full result to preserve internal spaces.
+
+## Phase 5: Parser Architecture (S008)
+
+- Favor `iter_article_elements()` over a single selector to avoid assumptions about site structure.
+- Centralize parse loop in a base parser to standardize logging, dedupe, and position assignment.
+- Use `resolve_url()` to normalize URLs consistently (strip query/fragment, enforce allowed hosts).
+- Add direct unit tests for URL/srcset helpers to pin edge-case behavior (fragments, non-http schemes, root paths).
+- Register parsers with a decorator and instantiate from classes in the registry.
+- Load site parser modules during app initialization to avoid registry import side effects.

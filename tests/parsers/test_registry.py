@@ -3,8 +3,8 @@
 import pytest
 
 from news_scraper.parsers import ParserNotFoundError, get_parser
-from news_scraper.parsers.infobae import InfobaeParser
-from news_scraper.parsers.lanacion import LaNacionParser
+from news_scraper.parsers.sites.infobae import InfobaeParser
+from news_scraper.parsers.sites.lanacion import LaNacionParser
 
 
 class TestGetParser:
