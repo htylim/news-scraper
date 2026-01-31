@@ -91,8 +91,13 @@ class TestCliScrape:
         assert result.exit_code == 0
         assert "Scraping clarin" in result.stdout
         # Ensure other sources are NOT in output
-        assert "infobae" not in result.stdout or "Scraping infobae" not in result.stdout
-        assert "lanacion" not in result.stdout or "Scraping lanacion" not in result.stdout
+        assert (
+            "infobae" not in result.stdout
+            or "Scraping infobae" not in result.stdout
+        )
+        assert (
+            "lanacion" not in result.stdout or "Scraping lanacion" not in result.stdout
+        )
 
     def test_scrape_case_insensitive_lookup(self, cli_db_session: Session) -> None:
         """Test source lookup is case-insensitive."""
@@ -191,7 +196,9 @@ class TestCliScrape:
         assert clarin_pos < infobae_pos
         assert "Scraping lanacion" not in result.stdout
 
-    def test_scrape_multiple_sources_deduplicates(self, cli_db_session: Session) -> None:
+    def test_scrape_multiple_sources_deduplicates(
+        self, cli_db_session: Session
+    ) -> None:
         """Test that duplicate source names are deduplicated."""
         source = Source(name="infobae", url="https://infobae.com")
         cli_db_session.add(source)

@@ -57,7 +57,7 @@ Notes, learnings, and insights gathered during development
 - Deduplicate normalized inputs while preserving order using a set to track seen items.
 - In multi-source execution, continue processing remaining sources after per-source failures; track failures and exit with code 1 if any failed.
 - Print clear per-source headers before outputting results for better readability.
-- Use `typer.Argument` with default empty list `[]` for optional variadic positional arguments.
+- For optional variadic args, use `list[str] | None` defaulting to `None` and normalize to `[]` inside to satisfy ruff B006.
 
 ## Phase 7: Database Migrations
 

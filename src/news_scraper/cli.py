@@ -64,9 +64,11 @@ def main(
 @app.command(name="scrape")
 def scrape_cmd(
     source_names: Annotated[
-        list[str],
-        typer.Argument(help="Source name(s) to scrape. If omitted, scrapes all enabled sources."),
-    ] = [],
+        list[str] | None,
+        typer.Argument(
+            help="Source name(s) to scrape. If omitted, scrapes all enabled sources."
+        ),
+    ] = None,
 ) -> None:
     """Scrape news from configured source(s).
 
@@ -75,13 +77,15 @@ def scrape_cmd(
     """
     log = get_logger()
 
+    requested_sources = source_names or []
+
     with get_session() as session:
         sources_to_scrape: list[Source] = []
 
-        if source_names:
+        if requested_sources:
             # Validate and normalize all source names
             normalized_names: list[str] = []
-            for source_name in source_names:
+            for source_name in requested_sources:
                 try:
                     normalized = validate_slug(source_name, field_name="source")
                     normalized_names.append(normalized)
@@ -115,11 +119,13 @@ def scrape_cmd(
 
             if missing_or_disabled:
                 for name in missing_or_disabled:
-                    console.print(f"[red]Error:[/red] Source not found or disabled: {name}")
+                    console.print(
+                        f"[red]Error:[/red] Source not found or disabled: {name}"
+                    )
                 raise typer.Exit(code=1)
         else:
             # Query all enabled sources, ordered by name
-            stmt = select(Source).where(Source.is_enabled == True).order_by(Source.name)
+            stmt = select(Source).where(Source.is_enabled).order_by(Source.name)
             sources_to_scrape = list(session.scalars(stmt).all())
 
             if not sources_to_scrape:
