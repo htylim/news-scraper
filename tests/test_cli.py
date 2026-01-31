@@ -37,7 +37,6 @@ def cli_db_session(monkeypatch: pytest.MonkeyPatch) -> Generator[Session, None, 
 
     # Mock scrape to avoid actual browser calls
     def mock_scrape_fn(source: Source) -> ScrapeResult:
-        print(f"Scraping {source.name}")
         return ScrapeResult(
             articles=[
                 ParsedArticle(
